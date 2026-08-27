@@ -53,7 +53,7 @@ export function LoginPage() {
             label="User ID"
             value={id}
             onChange={(e) => setId(e.target.value)}
-            placeholder="admin"
+            placeholder="Enter your User ID"
             autoFocus
             required
           />
@@ -82,10 +82,6 @@ export function LoginPage() {
             {isSubmitting ? 'Signing In...' : 'Log In'}
           </Button>
         </form>
-
-        <div className="mt-6 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-pms-muted">
-          First time here? Default login is <strong className="font-mono text-pms-text">admin / admin123</strong>.
-        </div>
       </div>
     </div>
   );
