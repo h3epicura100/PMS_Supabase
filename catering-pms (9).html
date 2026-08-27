@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Order Rail — Catering PMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1E2124; --paper:#FAF6EF; --paper-dim:#F1ECE0; --steel:#57636B; --line:rgba(30,33,36,0.14);
+  --ember:#C1440E; --ember-dark:#9c3609; --saffron:#D9A441; --sage:#5B7B5A; --brick:#A23B2E; --card:#FFFFFF;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;}
+h1,h2,h3,h4{font-family:'Fraunces',serif;font-weight:600;margin:0;letter-spacing:-0.01em;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+
+/* ---------- LOGIN ---------- */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--ink);padding:20px;}
+.login-card{background:#fff;border-radius:14px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+.login-card .mark{width:44px;height:44px;background:var(--ember);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'IBM Plex Mono',monospace;font-weight:600;margin-bottom:14px;}
+.login-card h2{font-size:22px;margin-bottom:4px;}
+.login-card p.sub{color:var(--steel);font-size:13px;margin:0 0 22px;}
+.login-hint{background:var(--paper-dim);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--steel);margin-top:16px;}
+
+/* ---------- APP SHELL ---------- */
+.app{display:flex;min-height:100vh;}
+.sidebar{width:252px;flex-shrink:0;background:var(--ink);color:#EDE7D9;display:flex;flex-direction:column;padding:22px 0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.brand{padding:0 20px 18px 20px;border-bottom:1px solid rgba(237,231,217,0.14);margin-bottom:14px;}
+.brand .mark{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:var(--ember);border-radius:6px;font-family:'IBM Plex Mono',monospace;font-weight:600;color:#fff;font-size:15px;margin-bottom:10px;}
+.brand h1{font-size:19px;color:#fff;line-height:1.15;}
+.brand p{margin:4px 0 0;font-size:11.5px;color:#B9AF96;letter-spacing:0.03em;text-transform:uppercase;}
+.nav-group{padding:0 10px;margin-bottom:6px;}
+.nav-group-label{font-size:10.5px;letter-spacing:0.09em;text-transform:uppercase;color:#8B8570;padding:14px 10px 6px;font-weight:600;}
+.nav-item{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:none;color:#D9D3C2;padding:8px 10px;border-radius:7px;font-size:13.5px;margin-bottom:1px;transition:background .12s;}
+.nav-item:hover{background:rgba(237,231,217,0.08);}
+.nav-item.active{background:var(--ember);color:#fff;font-weight:600;}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;flex-shrink:0;}
+.user-box{margin-top:auto;padding:14px 20px 4px;border-top:1px solid rgba(237,231,217,0.14);}
+.user-box .uname{font-size:13px;font-weight:600;color:#fff;}
+.user-box .urole{font-size:11px;color:#B9AF96;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 30px;border-bottom:1px solid var(--line);background:var(--paper);position:sticky;top:0;z-index:5;}
+.topbar h2{font-size:22px;}
+.topbar .sub{color:var(--steel);font-size:13px;margin-top:2px;}
+.hamburger{display:none;background:none;border:1px solid var(--line);border-radius:6px;padding:7px 10px;}
+.content{padding:26px 30px 60px;max-width:1320px;width:100%;}
+
+/* ---------- BUTTONS ---------- */
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 15px;border-radius:7px;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px;transition:all .12s;}
+.btn:hover{border-color:var(--ink);}
+.btn-primary{background:var(--ember);border-color:var(--ember);color:#fff;}
+.btn-primary:hover{background:var(--ember-dark);}
+.btn-block{width:100%;justify-content:center;}
+.btn-sm{padding:6px 11px;font-size:12.5px;}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--steel);}
+.btn-ghost:hover{background:var(--paper-dim);color:var(--ink);}
+.btn-danger{color:var(--brick);border-color:rgba(162,59,46,0.3);}
+.btn-danger:hover{background:rgba(162,59,46,0.08);}
+
+/* ---------- CARDS ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px;transition:box-shadow .15s;}
+.card:hover{box-shadow:0 4px 16px rgba(30,33,36,0.05);}
+.ticket-meta{display:flex;flex-wrap:wrap;gap:18px 26px;font-size:13px;}
+.ticket-meta .m-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#9AA0A5;display:block;margin-bottom:2px;}
+.ticket-meta .m-val{font-weight:600;}
+
+/* ---------- STAMP ---------- */
+.stamp{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:5px 11px;border-radius:5px;border:1.5px solid currentColor;transform:rotate(-2deg);white-space:nowrap;}
+.s-pending{color:var(--steel);}
+.s-atrisk{color:var(--saffron);}
+.s-completed,.s-finalized{color:var(--sage);}
+.s-delayed,.s-rejected,.s-cancelled{color:var(--brick);}
+
+/* ---------- FORMS ---------- */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:12px;font-weight:600;color:var(--steel);}
+.field label .req{color:var(--brick);}
+.field label .opt{color:#9AA0A5;font-weight:500;text-transform:none;}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:7px;padding:9px 11px;font-size:13.5px;background:#fff;color:var(--ink);}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--ember);outline-offset:1px;border-color:var(--ember);}
+.field textarea{resize:vertical;min-height:64px;}
+.hint{font-size:11.5px;color:#9AA0A5;}
+
+.file-drop{border:1.5px dashed var(--line);border-radius:9px;padding:14px;display:flex;align-items:center;gap:12px;background:var(--paper-dim);}
+.file-drop input[type=file]{font-size:12.5px;}
+.file-name{font-size:12.5px;font-weight:600;}
+.file-link{font-size:12px;color:var(--ember);text-decoration:underline;}
+
+/* ---------- TABLE ---------- */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#9AA0A5;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600;}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr{transition:background .1s;}
+tbody tr:hover{background:rgba(30,33,36,0.025);}
+.item-table input{width:100%;border:1px solid transparent;background:transparent;padding:6px 7px;border-radius:5px;font-size:13px;}
+.item-table input:focus{border-color:var(--line);background:#fff;outline:none;}
+.item-table td.num{text-align:right;}
+.shortage-flag{color:var(--brick);font-weight:700;}
+.ok-flag{color:var(--sage);font-weight:700;}
+
+/* ---------- TABS ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;}
+.tab{padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--steel);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;}
+.tab.active{color:var(--ink);border-bottom-color:var(--ember);}
+.tab .count{background:var(--paper-dim);border-radius:20px;padding:1px 7px;font-size:11px;margin-left:6px;}
+
+/* ---------- EMPTY ---------- */
+.empty{text-align:center;padding:60px 20px;color:var(--steel);}
+.empty h3{color:var(--ink);margin-bottom:6px;font-size:17px;}
+.empty p{font-size:13.5px;margin:0 0 16px;}
+
+/* ---------- DASHBOARD ---------- */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px;}
+.stat-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px 16px 20px;position:relative;overflow:hidden;transition:box-shadow .15s;}
+.stat-card:hover{box-shadow:0 6px 18px rgba(30,33,36,0.08);}
+.stat-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--steel);}
+.stat-card.acc-ember::before{background:var(--ember);}
+.stat-card.acc-saffron::before{background:var(--saffron);}
+.stat-card.acc-brick::before{background:var(--brick);}
+.stat-card.acc-sage::before{background:var(--sage);}
+.stat-card .num{font-family:'Fraunces',serif;font-size:28px;font-weight:600;}
+.stat-card .lbl{font-size:11.5px;color:var(--steel);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+.progress-track{height:7px;border-radius:8px;background:var(--paper-dim);overflow:hidden;}
+.progress-fill{height:100%;background:var(--ember);border-radius:8px;transition:width .3s;}
+.tag{display:inline-block;font-size:11px;background:var(--paper-dim);border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0;color:var(--steel);}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+
+/* ---------- SETTINGS ---------- */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:8px;}
+.perm-item{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;}
+
+/* ---------- MODAL ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(30,33,36,0.5);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:50;}
+.modal{background:#fff;border-radius:12px;max-width:760px;width:100%;padding:26px 26px 22px;box-shadow:0 20px 60px rgba(0,0,0,0.25);}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.modal-close{background:none;border:none;font-size:20px;color:var(--steel);line-height:1;padding:4px;}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--line);}
+
+.menu-banner{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;background:#F4EFE1;border:1px solid #E7DDBF;border-radius:9px;padding:12px 16px;margin-bottom:18px;font-size:13px;}
+
+@media (max-width:880px){
+  .sidebar{position:fixed;left:-260px;z-index:40;transition:left .18s;box-shadow:4px 0 20px rgba(0,0,0,0.2);}
+  .sidebar.open{left:0;}
+  .hamburger{display:inline-flex;}
+  .content{padding:20px 16px 50px;}
+  .topbar{padding:14px 16px;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="modalHost"></div>
+
+<script>
+/* ============================================================
+   CONFIG
+============================================================ */
+const BOOKINGS_KEY = 'pms_bookings_v2';
+const USERS_KEY = 'pms_users_v2';
+const SHARED = true;
+const MAX_FILE_BYTES = 800*1024;
+
+const DEPT_LIST = [
+  {key:'chef', label:'Inform to Chef', type:'simple'},
+  {key:'tagPrints', label:'Tag Print', type:'simple'},
+  {key:'dress', label:'Dress', type:'simple'},
+  {key:'decor', label:'Decor List', type:'simple'},
+  {key:'crockery', label:'Crockery List', type:'simple'},
+  {key:'kitchenRawMaterial', label:'Kitchen & Raw Material', type:'simple'},
+  {key:'vegetables', label:'Vegetables', type:'vegetables'},
+];
+const DEPT_KEYS = DEPT_LIST.map(d=>d.key);
+const ALL_PAGE_KEYS = ['dashboard','bookings','menuFinalize', ...DEPT_KEYS];
+
+/* ============================================================
+   STATE
+============================================================ */
+let bookings = [];
+let users = [];
+let currentUser = null;
+let route = 'dashboard';
+let dataReady = false;
+window._temp = {}; // temp file attachments keyed by input id
+let bookingTab = 'pending';
+let menuTab = 'pending';
+let deptTab = {};
+
+/* ============================================================
+   STORAGE
+============================================================ */
+async function loadAll(){
+  try{
+    const res = await window.storage.get(BOOKINGS_KEY, SHARED);
+    bookings = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ bookings = []; }
+  bookings.forEach(ensureBookingShape);
+
+  try{
+    const res = await window.storage.get(USERS_KEY, SHARED);
+    users = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ users = []; }
+  if(!users.length){
+    users = [{id:'admin', password:'admin123', name:'Administrator', role:'admin', allowedPages:['ALL']}];
+    await saveUsers();
+  }
+  dataReady = true;
+}
+async function saveBookings(){
+  try{ await window.storage.set(BOOKINGS_KEY, JSON.stringify(bookings), SHARED); }
+  catch(e){ alert('Could not save changes. Please try again.'); }
+}
+async function saveUsers(){
+  try{ await window.storage.set(USERS_KEY, JSON.stringify(users), SHARED); }
+  catch(e){ alert('Could not save user settings.'); }
+}
+async function reloadData(){ await loadAll(); render(); }
+
+/* ============================================================
+   DATA SHAPE
+============================================================ */
+function emptyDept(cfg){
+  const base = {status:'Pending', remarks:'', attachment:null, updatedBy:'', updatedAt:''};
+  if(cfg.type==='vegetables'){ base.entries=[]; }
+  return base;
+}
+function ensureBookingShape(b){
+  b.departments = b.departments || {};
+  DEPT_LIST.forEach(cfg=>{
+    if(!b.departments[cfg.key]) b.departments[cfg.key] = emptyDept(cfg);
+    const d = b.departments[cfg.key];
+    if(cfg.type==='vegetables'){ d.entries = d.entries || []; }
+  });
+  b.menu = b.menu || {status:'Pending', details:'', reason:'', remarks:'', attachment:null, finalizationDate:''};
+  b.cancelled = !!b.cancelled;
+  b.closed = !!b.closed;
+}
+function newBookingId(){
+  const year = new Date().getFullYear();
+  const seq = bookings.filter(b=>b.id.includes('-'+year+'-')).length + 1;
+  return `PMS-${year}-${String(seq).padStart(5,'0')}`;
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function isMenuFinalized(b){ return b.menu.status === 'Finalized'; }
+function isHistoryBooking(b){ return b.cancelled || b.closed; }
+function stamp(label, cls){ return `<span class="stamp ${cls}">${esc(label)}</span>`; }
+function statusStamp(s){ return stamp(s, s==='Complete'||s==='Finalized' ? 's-completed' : (s==='Rejected'||s==='Cancelled' ? 's-rejected' : 's-pending')); }
+
+/* ============================================================
+   FILE ATTACHMENTS
+============================================================ */
+function handleFileSelect(inputId, evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  if(file.size > MAX_FILE_BYTES){
+    alert('Please attach a file under 800 KB (this app stores files inline).');
+    evt.target.value=''; return;
+  }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    window._temp[inputId] = {name:file.name, type:file.type, size:file.size, dataUrl:reader.result};
+    const lbl = document.getElementById(inputId+'_label');
+    if(lbl) lbl.textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+function attachmentField(inputId, existing){
+  return `<div class="field full">
+    <label>Attachment <span class="req">*</span></label>
+    <div class="file-drop">
+      <input type="file" id="${inputId}" onchange="handleFileSelect('${inputId}', event)">
+      <span class="file-name" id="${inputId}_label">${existing ? esc(existing.name) : 'No file chosen'}</span>
+      ${existing ? `<a class="file-link" href="${existing.dataUrl}" download="${esc(existing.name)}" onclick="event.stopPropagation()">Download current</a>` : ''}
+    </div>
+    <span class="hint">Max 800 KB. Choosing a new file replaces the current one.</span>
+  </div>`;
+}
+function resolveAttachment(inputId, existing){
+  return window._temp[inputId] || existing || null;
+}
+
+/* ============================================================
+   AUTH
+============================================================ */
+function hasAccess(pageKey){
+  if(!currentUser) return false;
+  if(pageKey==='dashboard') return true;
+  if(currentUser.role==='admin') return true;
+  return currentUser.allowedPages.includes('ALL') || currentUser.allowedPages.includes(pageKey);
+}
+function tryLogin(id, pass){
+  const u = users.find(x=>x.id.toLowerCase()===id.trim().toLowerCase() && x.password===pass);
+  if(!u) return false;
+  currentUser = u;
+  route = 'dashboard';
+  return true;
+}
+function logout(){ currentUser = null; renderRoot(); }
+
+/* ============================================================
+   ROOT RENDER
+============================================================ */
+function renderRoot(){
+  const root = document.getElementById('root');
+  if(!currentUser){ root.innerHTML = loginScreenHtml(); return; }
+  root.innerHTML = appShellHtml();
+  render();
+}
+function loginScreenHtml(){
+  return `<div class="login-screen"><div class="login-card">
+    <div class="mark">PMS</div>
+    <h2>Order Rail</h2>
+    <p class="sub">Sign in to manage today's bookings.</p>
+    <form id="loginForm">
+      <div class="field" style="margin-bottom:12px;"><label>ID</label><input id="loginId" autofocus required></div>
+      <div class="field" style="margin-bottom:6px;"><label>Password</label><input id="loginPass" type="password" required></div>
+      <div id="loginErr" class="hint" style="color:var(--brick);min-height:16px;margin:6px 0 10px;"></div>
+      <button class="btn btn-primary btn-block" type="submit">Log In</button>
+    </form>
+    <div class="login-hint">First time here? Default login is <strong class="mono">admin / admin123</strong>. Change it from Settings after logging in.</div>
+  </div></div>`;
+}
+function appShellHtml(){
+  return `<div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><div class="mark">PMS</div><h1>Order Rail</h1><p>Catering Ops</p></div>
+      <div id="navHost"></div>
+      <div class="user-box">
+        <div class="uname">${esc(currentUser.name||currentUser.id)}</div>
+        <div class="urole">${esc(currentUser.role)}</div>
+        <button class="btn btn-ghost btn-sm" style="color:#D9D3C2;border-color:rgba(237,231,217,0.25);width:100%;" onclick="logout()">Log Out</button>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="hamburger" onclick="toggleSidebar()">☰</button>
+          <div><h2 id="pageTitle">Dashboard</h2><div class="sub" id="pageSub"></div></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="reloadData()">Refresh</button>
+        </div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>`;
+}
+document.addEventListener('submit', function(e){
+  if(e.target && e.target.id==='loginForm'){
+    e.preventDefault();
+    const id = document.getElementById('loginId').value;
+    const pass = document.getElementById('loginPass').value;
+    if(tryLogin(id, pass)){ renderRoot(); }
+    else { document.getElementById('loginErr').textContent = 'Incorrect ID or password.'; }
+  }
+});
+
+/* ============================================================
+   NAV
+============================================================ */
+function navList(){
+  const list = [
+    {group:'', items:[{r:'dashboard', p:'dashboard', label:'Dashboard'}]},
+    {group:'Booking Management', items:[
+      {r:'bookings', p:'bookings', label:'Bookings'},
+      {r:'menuFinalize', p:'menuFinalize', label:'Menu Finalize'},
+    ]},
+    {group:'Department Workflow', items: DEPT_LIST.map(d=>({r:'dept:'+d.key, p:d.key, label:d.label}))},
+  ];
+  if(currentUser.role==='admin'){
+    list.push({group:'Admin', items:[{r:'settings', p:'settings', label:'Settings'}]});
+  }
+  return list.map(g=>({...g, items:g.items.filter(it=>hasAccess(it.p))})).filter(g=>g.items.length);
+}
+function renderNav(){
+  const host = document.getElementById('navHost');
+  host.innerHTML = navList().map(g=>`
+    ${g.group? `<div class="nav-group-label">${esc(g.group)}</div>`:''}
+    <div class="nav-group">${g.items.map(it=>`<button class="nav-item ${route===it.r?'active':''}" onclick="navigate('${it.r}')"><span class="nav-dot"></span>${esc(it.label)}</button>`).join('')}</div>
+  `).join('');
+}
+function navigate(r){
+  const pageKey = r.startsWith('dept:') ? r.slice(5) : r;
+  if(!hasAccess(pageKey)){ alert('You do not have access to this page.'); return; }
+  route = r; closeSidebarMobile(); render();
+}
+function toggleSidebar(){ document.getElementById('sidebar').classList.toggle('open'); }
+function closeSidebarMobile(){ const s=document.getElementById('sidebar'); if(s) s.classList.remove('open'); }
+function setTitle(t,s){ document.getElementById('pageTitle').textContent=t; document.getElementById('pageSub').textContent=s||''; }
+
+/* ============================================================
+   RENDER DISPATCH
+============================================================ */
+function render(){
+  if(!currentUser) return;
+  renderNav();
+  const c = document.getElementById('content');
+  if(!dataReady){ c.innerHTML = `<div class="empty"><h3>Loading the rail…</h3></div>`; return; }
+  if(!hasAccess(route.startsWith('dept:')?route.slice(5):route)){ route='dashboard'; }
+  if(route==='dashboard') return renderDashboard(c);
+  if(route==='bookings') return renderBookings(c);
+  if(route==='menuFinalize') return renderMenuFinalize(c);
+  if(route==='settings') return renderSettings(c);
+  if(route.startsWith('dept:')) return renderDepartment(c, route.slice(5));
+}
+
+/* ============================================================
+   PIPELINE / DASHBOARD
+============================================================ */
+function deptDoneCount(b){ return DEPT_LIST.filter(d=>b.departments[d.key].status==='Complete').length; }
+function pipelineInfo(b){
+  const total = DEPT_LIST.length;
+  const done = deptDoneCount(b);
+  const pct = Math.round(done/total*100);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ev = b.eventDate ? new Date(b.eventDate) : null;
+  const daysLeft = ev ? Math.round((ev-today)/86400000) : null;
+  let label='On Time', cls='s-completed';
+  if(pct<100){
+    if(daysLeft===null){ label='On Time'; cls='s-completed'; }
+    else if(daysLeft<0){ label='Delayed'; cls='s-delayed'; }
+    else if(daysLeft<=1){ label='Delayed'; cls='s-delayed'; }
+    else if(daysLeft<=3){ label='At Risk'; cls='s-atrisk'; }
+  } else { label='Completed'; cls='s-completed'; }
+  const pending = DEPT_LIST.filter(d=>b.departments[d.key].status!=='Complete').map(d=>d.label);
+  return {pct, daysLeft, label, cls, done, total, pending};
+}
+function derivedPlannedDate(b){
+  if(!b.eventDate) return '';
+  const d = new Date(b.eventDate);
+  d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+function deptDelayInfo(plannedDate, status, completedAt){
+  if(!plannedDate) return {label:'—', cls:'s-pending', sortRank:0};
+  const planned = new Date(plannedDate); planned.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(status==='Complete'){
+    const completedDate = completedAt ? new Date(completedAt) : today;
+    completedDate.setHours(0,0,0,0);
+    const diff = Math.round((completedDate-planned)/86400000);
+    if(diff<=0) return {label:'On Time', cls:'s-completed', sortRank:0};
+    return {label:`${diff} Day${diff>1?'s':''} Delayed`, cls:'s-delayed', sortRank:1};
+  }
+  const diff = Math.round((today-planned)/86400000);
+  if(diff<0) return {label:'On Time', cls:'s-completed', sortRank:0};
+  if(diff===0) return {label:'Due Today', cls:'s-atrisk', sortRank:2};
+  return {label:`${diff} Day${diff>1?'s':''} Delayed`, cls:'s-delayed', sortRank:3};
+}
+function deptRowInfo(b, key){
+  const cfg = DEPT_LIST.find(x=>x.key===key);
+  const d = b.departments[key];
+  const plannedDate = derivedPlannedDate(b);
+  if(cfg.type==='vegetables'){
+    const entries = d.entries||[];
+    if(!entries.length){
+      return {status:'Pending', plannedDate, delay:deptDelayInfo(plannedDate,'Pending',null), updatedBy:d.updatedBy||'', attachment:null, remarks:''};
+    }
+    const allComplete = entries.every(e=>e.status==='Complete');
+    if(allComplete){
+      const latest = entries.reduce((acc,e)=> (!acc || (e.updatedAt && new Date(e.updatedAt) > new Date(acc))) ? e.updatedAt : acc, null);
+      return {status:'Complete', plannedDate, delay:deptDelayInfo(plannedDate,'Complete',latest), updatedBy:entries[entries.length-1].updatedBy||'', attachment:entries[entries.length-1].attachment, remarks:entries[entries.length-1].remarks};
+    }
+    return {status:'Pending', plannedDate, delay:deptDelayInfo(plannedDate,'Pending',null), updatedBy:entries[entries.length-1].updatedBy||'', attachment:null, remarks:''};
+  }
+  return {status:d.status, plannedDate, delay:deptDelayInfo(plannedDate, d.status, d.updatedAt), updatedBy:d.updatedBy, attachment:d.attachment, remarks:d.remarks};
+}
+function sectionTitle(label, accent){
+  return `<div class="section-title"><h3 style="font-size:16px;display:flex;align-items:center;gap:9px;"><span style="width:8px;height:8px;border-radius:50%;background:var(${accent||'--ember'});display:inline-block;"></span>${esc(label)}</h3></div>`;
+}
+function renderDashboard(c){
+  const todayLabel = new Date().toLocaleDateString('en-IN', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  setTitle('Dashboard', `Management view — priorities, delays, and progress across every booking. · Today: ${todayLabel}`);
+  const live = bookings.filter(b=>!isHistoryBooking(b));
+  const finalized = live.filter(isMenuFinalized);
+  const menuPending = live.filter(b=>b.menu.status!=='Finalized');
+  const today = todayStr();
+
+  // Flatten every department row across active finalized bookings
+  const allRows = [];
+  finalized.forEach(b=>{
+    DEPT_LIST.forEach(cfg=>{
+      allRows.push({b, cfg, row: deptRowInfo(b, cfg.key)});
+    });
+  });
+  const deptPendingCount = allRows.filter(r=>r.row.status!=='Complete').length;
+  const dueTodayCount = allRows.filter(r=>r.row.delay.label==='Due Today').length;
+  const delayedCount = allRows.filter(r=>r.row.delay.label.includes('Delayed')).length;
+  const eventReadyCount = finalized.filter(b=>deptDoneCount(b)===DEPT_LIST.length).length;
+
+  let html = `<div class="stat-row">
+    <div class="stat-card acc-ember"><div class="num">${live.length}</div><div class="lbl">Total Active Bookings</div></div>
+    <div class="stat-card"><div class="num">${menuPending.length}</div><div class="lbl">Menu Pending</div></div>
+    <div class="stat-card"><div class="num">${finalized.length}</div><div class="lbl">Menu Finalized</div></div>
+    <div class="stat-card acc-saffron"><div class="num">${deptPendingCount}</div><div class="lbl">Department Tasks Pending</div></div>
+    <div class="stat-card acc-saffron"><div class="num" style="color:${dueTodayCount?'var(--saffron)':'var(--ink)'}">${dueTodayCount}</div><div class="lbl">Due Today</div></div>
+    <div class="stat-card acc-brick"><div class="num" style="color:${delayedCount?'var(--brick)':'var(--ink)'}">${delayedCount}</div><div class="lbl">Delayed Tasks</div></div>
+    <div class="stat-card acc-sage"><div class="num" style="color:var(--sage)">${eventReadyCount}</div><div class="lbl">Event Ready</div></div>
+  </div>`;
+
+  if(!bookings.length){
+    c.innerHTML = html + `<div class="empty"><h3>No bookings yet</h3><p>Start the rail with your first order.</p><button class="btn btn-primary" onclick="openBookingForm()">+ New Booking</button></div>`;
+    return;
+  }
+
+  /* A. Today's Priority */
+  const priority = allRows.filter(r=> r.row.status!=='Complete' && r.row.plannedDate && (r.row.plannedDate===today || r.row.delay.label.includes('Delayed')));
+  priority.sort((x,y)=>{
+    const rx = x.row.delay.label.includes('Delayed') ? 0 : 1;
+    const ry = y.row.delay.label.includes('Delayed') ? 0 : 1;
+    return rx-ry;
+  });
+  html += sectionTitle("Today's Priority", '--brick');
+  if(!priority.length){
+    html += `<div class="empty" style="padding:30px 20px;"><p>Nothing due today, and nothing delayed. All clear.</p></div>`;
+  } else {
+    html += `<div class="card" style="padding:0;overflow-x:auto;margin-bottom:24px;">
+      <table><thead><tr><th>Booking ID</th><th>Customer</th><th>Department</th><th>Event Date</th><th>Planned Date</th><th>Status</th><th>Delay Days</th><th>Action</th></tr></thead>
+      <tbody>${priority.map(({b,cfg,row})=>{
+        const rowTint = row.delay.cls==='s-delayed' ? 'background:rgba(162,59,46,0.05);' : (row.delay.cls==='s-atrisk' ? 'background:rgba(217,164,65,0.08);' : '');
+        return `<tr style="${rowTint}">
+          <td class="mono">${esc(b.id)}</td><td>${esc(b.customerName)}</td><td>${esc(cfg.label)}</td>
+          <td>${esc(b.eventDate||'—')}</td><td>${esc(row.plannedDate||'—')}</td>
+          <td>${statusStamp(row.status)}</td><td>${stamp(row.delay.label, row.delay.cls)}</td>
+          <td><button class="btn btn-sm btn-primary" onclick="openDeptModal('${b.id}','${cfg.key}')">Update</button></td>
+        </tr>`;
+      }).join('')}</tbody></table>
+    </div>`;
+  }
+
+  /* B. Upcoming Events */
+  const upcoming = finalized.map(b=>({b, info:pipelineInfo(b)})).sort((a,b2)=> (a.b.eventDate||'').localeCompare(b2.b.eventDate||''));
+  html += sectionTitle('Upcoming Events', '--steel');
+  if(!upcoming.length){
+    html += `<div class="empty" style="padding:30px 20px;"><p>Nothing scheduled yet — finalize a menu to see it here.</p></div>`;
+  } else {
+    html += `<div class="card" style="padding:0;overflow-x:auto;margin-bottom:24px;">
+      <table><thead><tr><th>Booking ID</th><th>Customer</th><th>Event Date</th><th>Guests</th><th>Overall Progress</th><th>Pending Departments</th></tr></thead>
+      <tbody>${upcoming.map(({b,info})=>`<tr>
+        <td class="mono">${esc(b.id)}</td><td>${esc(b.customerName)}</td><td>${esc(b.eventDate||'—')}</td><td>${esc(b.guestCount||'—')}</td>
+        <td style="min-width:140px;">
+          <div class="progress-track"><div class="progress-fill" style="width:${info.pct}%"></div></div>
+          <span class="hint">${info.pct}% (${info.done}/${info.total})</span>
+        </td>
+        <td>${info.pending.length? info.pending.slice(0,3).map(p=>`<span class="tag">${esc(p)}</span>`).join('') + (info.pending.length>3?`<span class="tag">+${info.pending.length-3} more</span>`:'') : '<span class="hint">All clear</span>'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>`;
+  }
+
+  /* C. Department Performance */
+  html += sectionTitle('Department Performance', '--saffron');
+  html += `<div class="card" style="padding:0;overflow-x:auto;margin-bottom:24px;">
+    <table><thead><tr><th>Department</th><th>Total Tasks</th><th>Pending</th><th>Complete</th><th>Due Today</th><th>Delayed</th></tr></thead>
+    <tbody>${DEPT_LIST.map(cfg=>{
+      const rows = allRows.filter(r=>r.cfg.key===cfg.key);
+      const totalT = rows.length;
+      const pendingT = rows.filter(r=>r.row.status!=='Complete').length;
+      const completeT = rows.filter(r=>r.row.status==='Complete').length;
+      const dueT = rows.filter(r=>r.row.delay.label==='Due Today').length;
+      const delayT = rows.filter(r=>r.row.delay.label.includes('Delayed')).length;
+      return `<tr>
+        <td>${esc(cfg.label)}</td><td>${totalT}</td><td>${pendingT}</td><td>${completeT}</td>
+        <td style="color:${dueT?'var(--saffron)':'inherit'};font-weight:${dueT?'700':'400'}">${dueT}</td>
+        <td style="color:${delayT?'var(--brick)':'inherit'};font-weight:${delayT?'700':'400'}">${delayT}</td>
+      </tr>`;
+    }).join('')}</tbody></table>
+  </div>`;
+
+  /* D. Booking Progress */
+  html += sectionTitle('Booking Progress', '--sage');
+  if(!finalized.length){
+    html += `<div class="empty" style="padding:30px 20px;"><p>This fills in once a menu is locked.</p></div>`;
+  } else {
+    html += `<div class="card" style="padding:0;overflow-x:auto;margin-bottom:24px;">
+      <table><thead><tr><th>Booking ID</th><th>Customer</th><th>Event Date</th><th>Overall Progress</th><th>Completed / Total</th><th>Pending Departments</th></tr></thead>
+      <tbody>${finalized.map(b=>{
+        const info = pipelineInfo(b);
+        return `<tr>
+          <td class="mono">${esc(b.id)}</td><td>${esc(b.customerName)}</td><td>${esc(b.eventDate||'—')}</td>
+          <td style="min-width:140px;"><div class="progress-track"><div class="progress-fill" style="width:${info.pct}%"></div></div><span class="hint">${info.pct}%</span></td>
+          <td>${info.done} / ${info.total}</td>
+          <td>${info.pending.length? info.pending.slice(0,3).map(p=>`<span class="tag">${esc(p)}</span>`).join('') + (info.pending.length>3?`<span class="tag">+${info.pending.length-3} more</span>`:'') : '<span class="hint">All clear</span>'}</td>
+        </tr>`;
+      }).join('')}</tbody></table>
+    </div>`;
+  }
+
+  /* Ready to close (existing feature, preserved) */
+  const readyToClose = finalized.filter(b=>deptDoneCount(b)===DEPT_LIST.length && !b.closed);
+  html += sectionTitle('Ready to close', '--sage');
+  if(!readyToClose.length){
+    html += `<div class="empty" style="padding:30px 20px;"><p>No events are fully wrapped up yet.</p></div>`;
+  } else {
+    html += readyToClose.map(b=>`<div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div><strong class="mono">${esc(b.id)}</strong> — ${esc(b.customerName)} · ${esc(b.eventDate)} <span class="hint">all departments complete</span></div>
+      <button class="btn btn-primary btn-sm" onclick="closeBooking('${b.id}')">Move to History</button>
+    </div>`).join('');
+  }
+  c.innerHTML = html;
+}
+function closeBooking(id){ const b=bookings.find(x=>x.id===id); b.closed=true; saveBookings().then(render); }
+
+/* ============================================================
+   BOOKINGS
+============================================================ */
+function renderBookings(c){
+  setTitle('Bookings','Capture the order. Everything downstream starts here.');
+  const pending = bookings.filter(b=>!isHistoryBooking(b));
+  const history = bookings.filter(isHistoryBooking);
+  const list = bookingTab==='pending' ? pending : history;
+
+  let html = `<div class="section-title">
+    <div class="tabs" style="border:none;margin:0;">
+      <button class="tab ${bookingTab==='pending'?'active':''}" onclick="bookingTab='pending';render()">Pending <span class="count">${pending.length}</span></button>
+      <button class="tab ${bookingTab==='history'?'active':''}" onclick="bookingTab='history';render()">History <span class="count">${history.length}</span></button>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openBookingForm()">+ New Booking</button>
+  </div>`;
+
+  if(!list.length){
+    html += `<div class="empty"><h3>Nothing here</h3><p>${bookingTab==='pending'?'No active bookings yet.':'No cancelled or closed bookings yet.'}</p></div>`;
+    c.innerHTML = html; return;
+  }
+
+  html += `<div class="card" style="padding:0;overflow-x:auto;">
+    <table><thead><tr><th>ID</th><th>Customer</th><th>Event</th><th>Date</th><th>Guests</th><th>Reference Name</th><th>Reference No.</th><th>Menu</th><th></th></tr></thead>
+    <tbody>${list.map(b=>`<tr>
+      <td class="mono">${esc(b.id)}</td>
+      <td>${esc(b.customerName)}<br><span class="hint">${esc(b.customerMobile)}</span></td>
+      <td>${esc(b.functionType||'—')}</td>
+      <td>${esc(b.eventDate||'—')}</td>
+      <td>${esc(b.guestCount||'—')}</td>
+      <td>${esc(b.referenceName||'—')}</td>
+      <td>${esc(b.referenceNumber||'—')}</td>
+      <td>${statusStamp(b.menu.status==='Finalized'?'Complete':'Pending')}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm btn-ghost" onclick="openBookingForm('${b.id}')">Edit</button>
+        ${bookingTab==='history'
+          ? `<button class="btn btn-sm btn-ghost" onclick="reopenBooking('${b.id}')">Reopen</button>`
+          : ''}
+      </td>
+    </tr>`).join('')}</tbody></table>
+  </div>`;
+  c.innerHTML = html;
+}
+function reopenBooking(id){
+  const b = bookings.find(x=>x.id===id); b.cancelled=false; b.closed=false;
+  saveBookings().then(render);
+}
+function openBookingForm(id){
+  const existing = id ? bookings.find(b=>b.id===id) : null;
+  const b = existing || {
+    id:newBookingId(), createdAt: todayStr(), customerName:'', customerMobile:'', altNumber:'',
+    eventDate:'', eventStart:'', functionType:'', venueName:'', guestCount:'',
+    referenceName:'', referenceNumber:'', remarks:'', cancelled:false, closed:false,
+  };
+  openModal(`
+    <div class="modal-head"><h3>${existing?'Edit Booking':'New Booking'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+    <form id="bookingForm">
+      <div class="form-grid">
+        <div class="field"><label>Booking ID</label><input class="mono" value="${esc(b.id)}" disabled></div>
+        <div class="field"><label>Booking Date</label><input value="${esc(b.createdAt)}" disabled></div>
+        <div class="field"><label>Customer Name <span class="req">*</span></label><input required id="f_customerName" value="${esc(b.customerName)}"></div>
+        <div class="field"><label>Customer Mobile <span class="req">*</span></label><input required id="f_customerMobile" value="${esc(b.customerMobile)}"></div>
+        <div class="field"><label>Alternate Number</label><input id="f_altNumber" value="${esc(b.altNumber)}"></div>
+        <div class="field"><label>Function Type</label>
+          <select id="f_functionType">${['Wedding','Birthday','Corporate','Engagement','Anniversary','Other'].map(o=>`<option ${b.functionType===o?'selected':''}>${o}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Event Date <span class="req">*</span></label><input required type="date" id="f_eventDate" value="${esc(b.eventDate)}"></div>
+        <div class="field"><label>Event Time</label><input type="time" id="f_eventStart" value="${esc(b.eventStart)}"></div>
+        <div class="field"><label>Number of People</label><input type="number" id="f_guestCount" value="${esc(b.guestCount)}"></div>
+        <div class="field"><label>Venue Name</label><input id="f_venueName" value="${esc(b.venueName)}"></div>
+        <div class="field"><label>Reference Name</label><input id="f_referenceName" value="${esc(b.referenceName)}"></div>
+        <div class="field"><label>Reference Number</label><input id="f_referenceNumber" value="${esc(b.referenceNumber)}"></div>
+        <div class="field full"><label>Remarks</label><textarea id="f_remarks">${esc(b.remarks)}</textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Booking</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('bookingForm').onsubmit = (e)=>{
+    e.preventDefault();
+    const name = document.getElementById('f_customerName').value.trim();
+    const mobile = document.getElementById('f_customerMobile').value.trim();
+    const eventDate = document.getElementById('f_eventDate').value;
+    if(!name||!mobile||!eventDate){ alert('Customer name, mobile, and event date are required.'); return; }
+    const data = {
+      ...b, customerName:name, customerMobile:mobile,
+      altNumber:document.getElementById('f_altNumber').value,
+      functionType:document.getElementById('f_functionType').value,
+      eventDate, eventStart:document.getElementById('f_eventStart').value,
+      guestCount:document.getElementById('f_guestCount').value,
+      venueName:document.getElementById('f_venueName').value,
+      referenceName:document.getElementById('f_referenceName').value,
+      referenceNumber:document.getElementById('f_referenceNumber').value,
+      remarks:document.getElementById('f_remarks').value,
+    };
+    ensureBookingShape(data);
+    if(existing){ bookings[bookings.findIndex(x=>x.id===b.id)] = data; }
+    else { bookings.push(data); }
+    saveBookings().then(()=>{ closeModal(); navigate('bookings'); });
+  };
+}
+
+/* ============================================================
+   MENU FINALIZE
+============================================================ */
+function renderMenuFinalize(c){
+  setTitle('Menu Finalize','The approval gate. Nothing moves to the kitchen until this is locked.');
+  const live = bookings.filter(b=>!isHistoryBooking(b));
+  const pending = live.filter(b=>b.menu.status!=='Finalized');
+  const complete = live.filter(b=>b.menu.status==='Finalized');
+  const list = menuTab==='pending' ? pending : complete;
+
+  let html = `<div class="tabs">
+    <button class="tab ${menuTab==='pending'?'active':''}" onclick="menuTab='pending';render()">Pending <span class="count">${pending.length}</span></button>
+    <button class="tab ${menuTab==='complete'?'active':''}" onclick="menuTab='complete';render()">Complete <span class="count">${complete.length}</span></button>
+  </div>`;
+
+  if(!list.length){
+    html += `<div class="empty"><h3>Nothing here</h3><p>${menuTab==='pending'?'No bookings waiting on a menu decision.':'No menus finalized yet.'}</p></div>`;
+    c.innerHTML = html; return;
+  }
+
+  html += `<div class="card" style="padding:0;overflow-x:auto;">
+    <table><thead><tr><th></th><th>ID</th><th>Customer</th><th>Event Date</th><th>Venue</th><th>Guests</th><th>Status</th></tr></thead>
+    <tbody>${list.map(b=>`<tr>
+      <td><button class="btn btn-sm btn-primary" onclick="openMenuModal('${b.id}')">Update</button></td>
+      <td class="mono">${esc(b.id)}</td><td>${esc(b.customerName)}</td><td>${esc(b.eventDate)}</td>
+      <td>${esc(b.venueName||'—')}</td><td>${esc(b.guestCount||'—')}</td>
+      <td>${stamp(b.menu.status, b.menu.status==='Finalized'?'s-completed':(b.menu.status==='Rejected'?'s-rejected':'s-pending'))}</td>
+    </tr>`).join('')}</tbody></table>
+  </div>`;
+  c.innerHTML = html;
+}
+function openMenuModal(id){
+  const b = bookings.find(x=>x.id===id);
+  const inputId = `menuAttach_${b.id}`;
+  openModal(`
+    <div class="modal-head"><h3>Menu Decision — ${esc(b.id)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="ticket-meta" style="margin-bottom:16px;">
+      <div><span class="m-label">Customer</span><span class="m-val">${esc(b.customerName)}</span></div>
+      <div><span class="m-label">Event Date & Time</span><span class="m-val">${esc(b.eventDate)} ${esc(b.eventStart||'')}</span></div>
+      <div><span class="m-label">Venue</span><span class="m-val">${esc(b.venueName||'—')}</span></div>
+      <div><span class="m-label">Guests</span><span class="m-val">${esc(b.guestCount||'—')}</span></div>
+      <div><span class="m-label">Reference</span><span class="m-val">${esc(b.referenceName||'—')}</span></div>
+    </div>
+    <div class="field" style="margin-bottom:14px;"><label>Status</label>
+      <select id="m_status" onchange="toggleMenuFields(this.value)">
+        ${['Pending','Rejected','Finalized'].map(o=>`<option ${b.menu.status===o?'selected':''}>${o}</option>`).join('')}
+      </select>
+    </div>
+    <div id="m_reasonBlock" style="display:${b.menu.status!=='Finalized'?'block':'none'};">
+      <div class="field full"><label>Reason <span class="req">*</span></label><textarea id="m_reason" placeholder="Why is the menu pending or rejected?">${esc(b.menu.reason||'')}</textarea></div>
+    </div>
+    <div id="m_finalBlock" class="form-grid" style="display:${b.menu.status==='Finalized'?'grid':'none'};">
+      ${attachmentField(inputId, b.menu.attachment)}
+      <div class="field full"><label>Remarks <span class="opt">(optional)</span></label><textarea id="m_remarks">${esc(b.menu.remarks||'')}</textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveMenu('${b.id}','${inputId}')">Save</button>
+    </div>
+  `);
+}
+function toggleMenuFields(status){
+  document.getElementById('m_reasonBlock').style.display = status!=='Finalized' ? 'block':'none';
+  document.getElementById('m_finalBlock').style.display = status==='Finalized' ? 'grid':'none';
+}
+function saveMenu(id, inputId){
+  const b = bookings.find(x=>x.id===id);
+  const status = document.getElementById('m_status').value;
+  if(status!=='Finalized'){
+    const reason = document.getElementById('m_reason').value.trim();
+    if(!reason){ alert('Reason is required when status is Pending or Rejected.'); return; }
+    b.menu = {...b.menu, status, reason};
+  } else {
+    const attachment = resolveAttachment(inputId, b.menu.attachment);
+    if(!attachment){ alert('Please attach the finalized menu file.'); return; }
+    b.menu = {...b.menu, status, attachment, remarks:document.getElementById('m_remarks').value, finalizationDate: todayStr()};
+  }
+  delete window._temp[inputId];
+  saveBookings().then(()=>{ closeModal(); render(); });
+}
+
+/* ============================================================
+   DEPARTMENTS
+============================================================ */
+function renderDepartment(c, key){
+  const cfg = DEPT_LIST.find(d=>d.key===key);
+  setTitle(cfg.label, 'Same locked menu, every department — update status, remarks and attachments here.');
+  const tab = deptTab[key] || 'pending';
+  const pool = bookings.filter(b=>!isHistoryBooking(b) && isMenuFinalized(b));
+  const pending = pool.filter(b=>b.departments[key].status!=='Complete');
+  const history = pool.filter(b=>b.departments[key].status==='Complete');
+  const list = tab==='pending' ? pending : history;
+
+  let html = `<div class="tabs">
+    <button class="tab ${tab==='pending'?'active':''}" onclick="deptTab['${key}']='pending';render()">Pending <span class="count">${pending.length}</span></button>
+    <button class="tab ${tab==='history'?'active':''}" onclick="deptTab['${key}']='history';render()">History <span class="count">${history.length}</span></button>
+  </div>`;
+
+  if(!pool.length){
+    html += `<div class="empty"><h3>No active tasks</h3><p>Department tasks appear only after a booking's menu is finalized.</p></div>`;
+    c.innerHTML = html; return;
+  }
+  if(!list.length){
+    html += `<div class="empty"><h3>Nothing ${tab==='pending'?'pending':'in history'}</h3><p>${tab==='pending'?'All caught up on this department.':'No completed tasks yet.'}</p></div>`;
+    c.innerHTML = html; return;
+  }
+
+  const showPlanned = tab==='pending';
+  html += `<div class="card" style="padding:0;overflow-x:auto;">
+    <table><thead><tr><th>Action</th><th>Booking ID</th><th>Customer</th><th>Event Date</th>${showPlanned?'<th>Planned Date</th>':''}<th>Venue</th><th>Guests</th><th>Status</th><th>Delay Days</th><th>Updated By</th></tr></thead>
+    <tbody>${list.map(b=>{
+      const row = deptRowInfo(b, key);
+      const rowTint = row.delay.cls==='s-delayed' ? 'background:rgba(162,59,46,0.05);' : (row.delay.cls==='s-atrisk' ? 'background:rgba(217,164,65,0.08);' : '');
+      return `<tr style="${rowTint}">
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm btn-primary" onclick="openDeptModal('${b.id}','${key}')">Update</button>
+          <button class="btn btn-sm btn-ghost" onclick="viewMenu('${b.id}')">Menu</button>
+        </td>
+        <td class="mono">${esc(b.id)}</td><td>${esc(b.customerName)}</td><td>${esc(b.eventDate||'—')}</td>
+        ${showPlanned?`<td>${esc(row.plannedDate||'—')}</td>`:''}
+        <td>${esc(b.venueName||'—')}</td><td>${esc(b.guestCount||'—')}</td>
+        <td>${statusStamp(row.status)}</td><td>${stamp(row.delay.label, row.delay.cls)}</td><td>${esc(row.updatedBy||'—')}</td>
+      </tr>`;
+    }).join('')}</tbody></table>
+  </div>`;
+  c.innerHTML = html;
+}
+
+function openDeptModal(bookingId, key){
+  const cfg = DEPT_LIST.find(d=>d.key===key);
+  if(cfg.type==='vegetables'){ openVegModal(bookingId); return; }
+  const b = bookings.find(x=>x.id===bookingId);
+  const d = b.departments[key];
+  const inputId = `deptAttach_${key}_${bookingId}`;
+  openModal(`
+    <div class="modal-head"><h3>${esc(cfg.label)} — ${esc(b.id)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="ticket-meta" style="margin-bottom:14px;">
+      <div><span class="m-label">Customer</span><span class="m-val">${esc(b.customerName)}</span></div>
+      <div><span class="m-label">Event</span><span class="m-val">${esc(b.eventDate)} ${esc(b.eventStart||'')}</span></div>
+      <div><span class="m-label">Venue</span><span class="m-val">${esc(b.venueName||'—')}</span></div>
+      <div><span class="m-label">Guests</span><span class="m-val">${esc(b.guestCount||'—')}</span></div>
+      <button class="btn btn-sm btn-ghost" onclick="viewMenu('${b.id}')">View Menu</button>
+    </div>
+    <div class="form-grid" style="margin-top:14px;">
+      <div class="field"><label>Status</label>
+        <select id="dm_status" onchange="toggleDeptFields('${inputId}', this.value)">
+          <option ${d.status==='Pending'?'selected':''}>Pending</option>
+          <option ${d.status==='Complete'?'selected':''}>Complete</option>
+        </select>
+      </div>
+    </div>
+    <div id="dm_remarksBlock" class="field full" style="margin-top:12px;">
+      <label>Remarks ${d.status==='Pending' ? '<span class="req">*</span>' : '<span class="opt">(optional)</span>'}</label>
+      <textarea id="dm_remarks">${esc(d.remarks||'')}</textarea>
+    </div>
+    <div id="dm_attachBlock" style="display:${d.status==='Complete'?'block':'none'};margin-top:12px;">
+      ${attachmentField(inputId, d.attachment)}
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveDept('${b.id}','${key}','${inputId}')">Save</button>
+    </div>
+  `);
+}
+function toggleDeptFields(inputId, status){
+  document.getElementById('dm_remarksBlock').querySelector('label').innerHTML = status==='Pending' ? 'Remarks <span class="req">*</span>' : 'Remarks <span class="opt">(optional)</span>';
+  document.getElementById('dm_attachBlock').style.display = status==='Complete' ? 'block' : 'none';
+}
+function saveDept(bookingId, key, inputId){
+  const b = bookings.find(x=>x.id===bookingId);
+  const d = b.departments[key];
+  const status = document.getElementById('dm_status').value;
+  const remarks = document.getElementById('dm_remarks').value.trim();
+  if(status==='Pending' && !remarks){ alert('Remarks are required while status is Pending.'); return; }
+  let attachment = d.attachment;
+  if(status==='Complete'){
+    attachment = resolveAttachment(inputId, d.attachment);
+    if(!attachment){ alert('Please attach a file to mark this Complete.'); return; }
+  }
+  const updated = {...d, status, remarks, attachment, updatedBy:(currentUser.name||currentUser.id), updatedAt:new Date().toISOString()};
+  b.departments[key] = updated;
+  delete window._temp[inputId];
+  saveBookings().then(()=>{ closeModal(); render(); });
+}
+
+/* ---- Vegetables: repeatable entry modal ---- */
+function openVegModal(bookingId){
+  const b = bookings.find(x=>x.id===bookingId);
+  const d = b.departments.vegetables;
+  const entries = d.entries || [];
+  openModal(`
+    <div class="modal-head"><h3>Vegetables — ${esc(b.id)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="ticket-meta" style="margin-bottom:14px;">
+      <div><span class="m-label">Customer</span><span class="m-val">${esc(b.customerName)}</span></div>
+      <div><span class="m-label">Event</span><span class="m-val">${esc(b.eventDate)} ${esc(b.eventStart||'')}</span></div>
+      <div><span class="m-label">Venue</span><span class="m-val">${esc(b.venueName||'—')}</span></div>
+      <div><span class="m-label">Guests</span><span class="m-val">${esc(b.guestCount||'—')}</span></div>
+      <button class="btn btn-sm btn-ghost" onclick="viewMenu('${b.id}')">View Menu</button>
+    </div>
+    <div id="veg_entries">${entries.map((e,i)=>vegEntryHtml(i,e,bookingId)).join('')}</div>
+    <div id="veg_emptyMsg" class="hint" style="${entries.length?'display:none;':''}margin:8px 0 12px;">No vegetable entries yet — add one below.</div>
+    <button type="button" class="btn btn-sm btn-ghost" onclick="addVegEntry('${bookingId}')">+ Add Vegetable Entry</button>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveVegDept('${bookingId}')">Save</button>
+    </div>
+  `);
+}
+function vegEntryHtml(i, e, bookingId){
+  const inputId = `vegAttach_${bookingId}_${i}`;
+  return `<div class="card" data-entry="${i}" style="margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <strong>Entry ${i+1}</strong>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="this.closest('[data-entry]').remove()">✕ Remove</button>
+    </div>
+    <div class="form-grid">
+      <div class="field"><label>Vegetable Type</label>
+        <select data-field="vegType" onchange="toggleVegEntrySource(this)">
+          <option value="Normal" ${e.vegType!=='English'?'selected':''}>Normal Vegetables</option>
+          <option value="English" ${e.vegType==='English'?'selected':''}>English Vegetables</option>
+        </select>
+      </div>
+      <div class="field veg-entry-source" style="display:${e.vegType==='English'?'flex':'none'};">
+        <label>Source</label>
+        <select data-field="source">
+          <option value="Local" ${e.source==='Local'?'selected':''}>Local</option>
+          <option value="Outstation" ${e.source==='Outstation'?'selected':''}>Outstation</option>
+        </select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select data-field="status" onchange="toggleVegEntryFields(this)">
+          <option ${e.status!=='Complete'?'selected':''}>Pending</option>
+          <option ${e.status==='Complete'?'selected':''}>Complete</option>
+        </select>
+      </div>
+    </div>
+    <div class="field full veg-entry-remarks" style="margin-top:10px;">
+      <label>Remarks ${e.status==='Complete' ? '<span class="opt">(optional)</span>' : '<span class="req">*</span>'}</label>
+      <textarea data-field="remarks">${esc(e.remarks||'')}</textarea>
+    </div>
+    <div class="veg-entry-attach" style="display:${e.status==='Complete'?'block':'none'};margin-top:10px;">
+      ${attachmentField(inputId, e.attachment)}
+    </div>
+  </div>`;
+}
+function toggleVegEntrySource(sel){
+  const card = sel.closest('[data-entry]');
+  card.querySelector('.veg-entry-source').style.display = sel.value==='English' ? 'flex' : 'none';
+}
+function toggleVegEntryFields(sel){
+  const card = sel.closest('[data-entry]');
+  card.querySelector('.veg-entry-remarks label').innerHTML = sel.value==='Complete' ? 'Remarks <span class="opt">(optional)</span>' : 'Remarks <span class="req">*</span>';
+  card.querySelector('.veg-entry-attach').style.display = sel.value==='Complete' ? 'block' : 'none';
+}
+function addVegEntry(bookingId){
+  const host = document.getElementById('veg_entries');
+  const i = host.querySelectorAll('[data-entry]').length;
+  const div = document.createElement('div');
+  div.innerHTML = vegEntryHtml(i, {vegType:'Normal', status:'Pending'}, bookingId);
+  host.appendChild(div.firstElementChild);
+  document.getElementById('veg_emptyMsg').style.display = 'none';
+}
+function saveVegDept(bookingId){
+  const b = bookings.find(x=>x.id===bookingId);
+  const d = b.departments.vegetables;
+  const cards = Array.from(document.getElementById('veg_entries').querySelectorAll('[data-entry]'));
+  if(!cards.length){ alert('Add at least one vegetable entry before saving.'); return; }
+  const currentName = currentUser.name || currentUser.id;
+  const nowIso = new Date().toISOString();
+  const entries = [];
+  for(const card of cards){
+    const idx = Number(card.dataset.entry);
+    const vegType = card.querySelector('[data-field="vegType"]').value;
+    const source = vegType==='English' ? card.querySelector('[data-field="source"]').value : '';
+    const status = card.querySelector('[data-field="status"]').value;
+    const remarks = card.querySelector('[data-field="remarks"]').value.trim();
+    if(status==='Pending' && !remarks){ alert(`Entry ${idx+1}: remarks are required while status is Pending.`); return; }
+    const fileInput = card.querySelector('input[type="file"]');
+    const inputId = fileInput.id;
+    const existing = (d.entries||[])[idx];
+    let attachment = existing ? existing.attachment : null;
+    if(status==='Complete'){
+      attachment = resolveAttachment(inputId, attachment);
+      if(!attachment){ alert(`Entry ${idx+1}: please attach a file to mark it Complete.`); return; }
+    }
+    entries.push({vegType, source, status, remarks, updatedBy:currentName, attachment, updatedAt:nowIso});
+    delete window._temp[inputId];
+  }
+  const overallStatus = entries.every(e=>e.status==='Complete') ? 'Complete' : 'Pending';
+  b.departments.vegetables = {...d, entries, status:overallStatus, updatedBy: currentName, updatedAt: nowIso};
+  saveBookings().then(()=>{ closeModal(); render(); });
+}
+
+/* ============================================================
+   VIEW MENU MODAL
+============================================================ */
+function viewMenu(bookingId){
+  const b = bookings.find(x=>x.id===bookingId);
+  openModal(`
+    <div class="modal-head"><h3>Finalized Menu — ${esc(b.id)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="ticket-meta" style="margin-bottom:14px;">
+      <div><span class="m-label">Finalized On</span><span class="m-val">${esc(b.menu.finalizationDate||'—')}</span></div>
+      <div><span class="m-label">Attachment</span><span class="m-val">${b.menu.attachment? `<a class="file-link" href="${b.menu.attachment.dataUrl}" download="${esc(b.menu.attachment.name)}">${esc(b.menu.attachment.name)}</a>` : '—'}</span></div>
+    </div>
+    ${b.menu.remarks?`<div class="field" style="margin-top:10px;"><label>Remarks</label><div class="hint">${esc(b.menu.remarks)}</div></div>`:''}
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  `);
+}
+
+/* ============================================================
+   SETTINGS (admin only)
+============================================================ */
+function renderSettings(c){
+  setTitle('Settings','Control who can see which page.');
+  let html = `<div class="section-title"><h3 style="font-size:16px;">Users</h3><button class="btn btn-primary btn-sm" onclick="openUserForm()">+ New User</button></div>`;
+  html += `<div class="card" style="padding:0;overflow-x:auto;">
+    <table><thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Access</th><th></th></tr></thead>
+    <tbody>${users.map(u=>`<tr>
+      <td class="mono">${esc(u.id)}</td><td>${esc(u.name||'—')}</td><td>${esc(u.role)}</td>
+      <td>${u.role==='admin'||u.allowedPages.includes('ALL') ? '<span class="tag">Full Access</span>' : (u.allowedPages.map(p=>`<span class="tag">${esc(pageLabel(p))}</span>`).join('') || '<span class="hint">None</span>')}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm btn-ghost" onclick="openUserForm('${u.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.id}')">Delete</button>
+      </td>
+    </tr>`).join('')}</tbody></table>
+  </div>`;
+  c.innerHTML = html;
+}
+function pageLabel(key){
+  if(key==='bookings') return 'Bookings';
+  if(key==='menuFinalize') return 'Menu Finalize';
+  if(key==='dashboard') return 'Dashboard';
+  const d = DEPT_LIST.find(x=>x.key===key);
+  return d ? d.label : key;
+}
+function openUserForm(id){
+  const existing = id ? users.find(u=>u.id===id) : null;
+  const u = existing || {id:'', password:'', name:'', role:'staff', allowedPages:[]};
+  const fullAccess = u.allowedPages.includes('ALL') || u.role==='admin';
+  openModal(`
+    <div class="modal-head"><h3>${existing?'Edit User':'New User'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+    <form id="userForm">
+      <div class="form-grid">
+        <div class="field"><label>ID <span class="req">*</span></label><input id="u_id" required value="${esc(u.id)}" ${existing?'disabled':''}></div>
+        <div class="field"><label>Password <span class="req">*</span></label><input id="u_pass" required value="${esc(u.password)}"></div>
+        <div class="field"><label>Name</label><input id="u_name" value="${esc(u.name)}"></div>
+        <div class="field"><label>Role</label>
+          <select id="u_role" onchange="document.getElementById('permBlock').style.display=this.value==='admin'?'none':'block'; document.getElementById('fullAccessNote').style.display=this.value==='admin'?'block':'none';">
+            <option value="staff" ${u.role==='staff'?'selected':''}>Staff</option>
+            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+          </select>
+        </div>
+      </div>
+      <div id="fullAccessNote" class="hint" style="margin-top:10px;display:${u.role==='admin'?'block':'none'};">Admins automatically see every page, including Settings.</div>
+      <div id="permBlock" style="display:${u.role==='admin'?'none':'block'};margin-top:14px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:8px;">
+          <input type="checkbox" id="u_fullAccess" ${fullAccess?'checked':''} onchange="document.getElementById('permGrid').style.opacity=this.checked?'0.4':'1';document.getElementById('permGrid').style.pointerEvents=this.checked?'none':'auto';">
+          Full access to all pages
+        </label>
+        <div class="perm-grid" id="permGrid" style="${fullAccess?'opacity:0.4;pointer-events:none;':''}">
+          ${ALL_PAGE_KEYS.filter(k=>k!=='dashboard').map(k=>`
+            <label class="perm-item"><input type="checkbox" class="permCb" value="${k}" ${u.allowedPages.includes(k)?'checked':''}> ${esc(pageLabel(k))}</label>
+          `).join('')}
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save User</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('userForm').onsubmit = (e)=>{
+    e.preventDefault();
+    const id = document.getElementById('u_id').value.trim();
+    const password = document.getElementById('u_pass').value;
+    if(!id || !password){ alert('ID and password are required.'); return; }
+    if(!existing && users.find(x=>x.id.toLowerCase()===id.toLowerCase())){ alert('That ID is already in use.'); return; }
+    const role = document.getElementById('u_role').value;
+    let allowedPages = ['dashboard'];
+    if(role!=='admin'){
+      const full = document.getElementById('u_fullAccess').checked;
+      if(full) allowedPages = ['ALL'];
+      else allowedPages = Array.from(document.querySelectorAll('.permCb:checked')).map(cb=>cb.value);
+    } else { allowedPages = ['ALL']; }
+    const data = {id, password, name:document.getElementById('u_name').value, role, allowedPages};
+    if(existing){ users[users.findIndex(x=>x.id===u.id)] = data; if(currentUser.id===data.id) currentUser = data; }
+    else { users.push(data); }
+    saveUsers().then(()=>{ closeModal(); render(); });
+  };
+}
+function deleteUser(id){
+  if(id===currentUser.id){ alert('You cannot delete the account you are logged in as.'); return; }
+  const admins = users.filter(u=>u.role==='admin');
+  const target = users.find(u=>u.id===id);
+  if(target.role==='admin' && admins.length<=1){ alert('At least one admin must remain.'); return; }
+  if(!confirm(`Delete user "${id}"?`)) return;
+  users = users.filter(u=>u.id!==id);
+  saveUsers().then(render);
+}
+
+/* ============================================================
+   MODAL SYSTEM
+============================================================ */
+function openModal(innerHtml){
+  document.getElementById('modalHost').innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${innerHtml}</div></div>`;
+}
+function closeModal(){ document.getElementById('modalHost').innerHTML=''; window._temp = {}; }
+
+/* ============================================================
+   INIT
+============================================================ */
+(async function init(){
+  document.getElementById('root').innerHTML = loginScreenHtml();
+  await loadAll();
+  // re-render login screen in case it was showing a stale hint state
+  if(!currentUser) document.getElementById('root').innerHTML = loginScreenHtml();
+})();
+</script>
+</body>
+</html>
