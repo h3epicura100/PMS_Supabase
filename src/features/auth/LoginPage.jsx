@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
+import { Footer } from '../../components/layout/Footer';
 
 export function LoginPage() {
   const [id, setId] = useState('');
@@ -33,8 +34,10 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-2xl border border-slate-100">
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-between p-4">
+      <div className="w-full" />
+
+      <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-2xl border border-slate-100 my-auto">
         {/* Brand Mark */}
         <div className="flex items-center gap-3 mb-6">
           <img
@@ -82,7 +85,11 @@ export function LoginPage() {
             {isSubmitting ? 'Signing In...' : 'Log In'}
           </Button>
         </form>
+
+        <Footer className="mt-4 pt-3 border-t border-slate-100 text-slate-400" />
       </div>
+
+      <div className="w-full" />
     </div>
   );
 }
