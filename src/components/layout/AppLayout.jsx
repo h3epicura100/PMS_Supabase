@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { PageContainer } from './PageContainer';
-import { Footer } from './Footer';
 import { NAVIGATION } from '../../constants/permissions';
 import { useRealtime } from '../../hooks/useRealtime';
 
@@ -35,12 +34,10 @@ export function AppLayout() {
           onToggleSidebar={() => setSidebarOpen(prev => !prev)}
         />
 
-        <main className="flex-1 flex flex-col justify-between">
+        <main className="flex-1">
           <PageContainer>
             <Outlet />
           </PageContainer>
-
-          <Footer className="border-t border-slate-200/60 bg-white/40 mt-auto" />
         </main>
       </div>
     </div>
