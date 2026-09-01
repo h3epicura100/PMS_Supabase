@@ -57,17 +57,36 @@ export const dashboardService = {
     // 2. Upcoming events: ACTIVE finalized bookings ONLY (excluding closed bookings)
     const upcoming = [...activeFinalized].sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
 
-    // 3. Department performance aggregates for active bookings
+    // 3. Department performance aggregates across ALL events (active + completed/closed)
+    const allDeptRows = [];
+    bookings.forEach(b => {
+      const isClosed = b.status === 'closed' || b.closed;
+      DEPT_LIST.forEach(cfg => {
+        const deptData = b.departments?.[cfg.key] || {};
+        const effectiveStatus = isClosed ? 'Complete' : (deptData.status || 'Pending');
+        const plannedDate = derivedPlannedDate(b.eventDate);
+        const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
+        allDeptRows.push({
+          booking: b,
+          deptConfig: cfg,
+          deptData: { ...deptData, status: effectiveStatus },
+          plannedDate,
+          delayInfo,
+          isClosed,
+        });
+      });
+    });
+
     const deptPerformance = DEPT_LIST.map(cfg => {
-      const rows = activeDeptRows.filter(r => r.deptConfig.key === cfg.key);
+      const rows = allDeptRows.filter(r => r.deptConfig.key === cfg.key);
       return {
         label: cfg.label,
         key: cfg.key,
         total: rows.length,
-        pending: rows.filter(r => r.deptData.status !== 'Complete').length,
-        complete: rows.filter(r => r.deptData.status === 'Complete').length,
-        dueToday: rows.filter(r => r.deptData.status !== 'Complete' && r.delayInfo.isDueToday).length,
-        delayed: rows.filter(r => r.deptData.status !== 'Complete' && r.delayInfo.isDelayed).length,
+        pending: rows.filter(r => !r.isClosed && r.deptData.status !== 'Complete').length,
+        complete: rows.filter(r => r.isClosed || r.deptData.status === 'Complete').length,
+        dueToday: rows.filter(r => !r.isClosed && r.deptData.status !== 'Complete' && r.delayInfo.isDueToday).length,
+        delayed: rows.filter(r => !r.isClosed && r.deptData.status !== 'Complete' && r.delayInfo.isDelayed).length,
       };
     });
 

@@ -1,11 +1,9 @@
 import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { DelayBadge } from '../../components/shared/DelayBadge';
-import { Button } from '../../components/common/Button';
 import { formatDateDisplay } from '../../utils/dateUtils';
-import { AlertCircle } from 'lucide-react';
 
-export function PriorityTable({ items = [], onUpdateDept }) {
+export function PriorityTable({ items = [] }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -30,7 +28,6 @@ export function PriorityTable({ items = [], onUpdateDept }) {
                   <th className="py-3 px-4">Planned Date</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Delay Days</th>
-                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-pms-border">
@@ -59,15 +56,6 @@ export function PriorityTable({ items = [], onUpdateDept }) {
                       </td>
                       <td className="py-3 px-4">
                         <DelayBadge delayInfo={delayInfo} />
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() => onUpdateDept(booking, deptConfig)}
-                        >
-                          Update
-                        </Button>
                       </td>
                     </tr>
                   );

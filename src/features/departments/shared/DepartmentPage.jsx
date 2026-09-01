@@ -13,10 +13,16 @@ export function DepartmentPage({ deptConfig }) {
 
   const deptKey = deptConfig.key;
 
-  // Filter pool: Active bookings with Finalized menu only!
-  const pool = bookings.filter(b => (b.status === 'active' || (!b.status && !b.closed && !b.cancelled)) && b.menu?.status === 'Finalized');
-  const pendingTasks = pool.filter(b => b.departments?.[deptKey]?.status !== 'Complete');
-  const historyTasks = pool.filter(b => b.departments?.[deptKey]?.status === 'Complete');
+  // Pending: Active bookings with Finalized menu where department task is not complete
+  const activePool = bookings.filter(
+    b => (b.status === 'active' || (!b.status && !b.closed && !b.cancelled)) && b.menu?.status === 'Finalized'
+  );
+  const pendingTasks = activePool.filter(b => b.departments?.[deptKey]?.status !== 'Complete');
+
+  // History: All completed department tasks (active or closed) and closed/archived events
+  const historyTasks = bookings.filter(
+    b => b.departments?.[deptKey]?.status === 'Complete' || b.status === 'closed' || b.closed
+  );
 
   const currentList = activeTab === 'pending' ? pendingTasks : historyTasks;
   const viewMenuBooking = bookings.find(b => b.id === viewMenuBookingId);

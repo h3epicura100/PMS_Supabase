@@ -71,8 +71,9 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
           <tbody className="divide-y divide-pms-border">
             {bookings.map((b) => {
               const deptData = b.departments?.[deptKey] || {};
+              const effectiveStatus = deptData.status || (b.status === 'closed' || b.closed ? 'Complete' : 'Pending');
               const plannedDate = derivedPlannedDate(b.eventDate);
-              const delayInfo = calculateDelayInfo(plannedDate, deptData.status, deptData.updatedAt);
+              const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
 
               const rowTint = delayInfo.cls === 'delayed'
                 ? 'bg-red-50/40 hover:bg-red-50/70'
@@ -126,7 +127,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                     {b.guestCount || '—'}
                   </td>
                   <td className="py-3 px-4">
-                    <StatusBadge status={deptData.status || 'Pending'} />
+                    <StatusBadge status={effectiveStatus} />
                   </td>
                   <td className="py-3 px-4">
                     <DelayBadge delayInfo={delayInfo} />
@@ -142,7 +143,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                     </td>
                   )}
                   <td className="py-3 px-4 text-pms-muted">
-                    {deptData.updatedBy || '—'}
+                    {deptData.updatedBy || (b.status === 'closed' || b.closed ? 'Closed Event' : '—')}
                   </td>
                 </tr>
               );

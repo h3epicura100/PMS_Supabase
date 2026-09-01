@@ -3,7 +3,7 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { Button } from '../../components/common/Button';
 import { formatDateDisplay } from '../../utils/dateUtils';
 import { storageService } from '../../services/storageService';
-import { Paperclip, FileText } from 'lucide-react';
+import { Paperclip } from 'lucide-react';
 
 function AttachmentCell({ attachment }) {
   if (!attachment || (!attachment.name && !attachment.path)) {
@@ -64,6 +64,8 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
           <tbody className="divide-y divide-pms-border">
             {bookings.map((b) => {
               const displayRemarks = b.menu?.remarks || b.menu?.reason || '—';
+              const menuStatus = b.menu?.status || (b.status === 'closed' || b.closed ? 'Finalized' : 'Pending');
+
               return (
                 <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 px-4 whitespace-nowrap">
@@ -91,7 +93,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                     {b.guestCount || '—'}
                   </td>
                   <td className="py-3 px-4">
-                    <StatusBadge status={b.menu?.status || 'Pending'} />
+                    <StatusBadge status={menuStatus} />
                   </td>
                   <td className="py-3 px-4 max-w-[200px] truncate text-slate-700 font-normal">
                     {displayRemarks}

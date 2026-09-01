@@ -13,10 +13,16 @@ export function VegetablesPage() {
   const { data: bookings = [], isLoading } = useBookings();
   const deptConfig = DEPT_LIST.find(d => d.key === 'vegetables');
 
-  // Filter pool: Active bookings with Finalized menu only!
-  const pool = bookings.filter(b => (b.status === 'active' || (!b.status && !b.closed && !b.cancelled)) && b.menu?.status === 'Finalized');
-  const pendingTasks = pool.filter(b => b.departments?.vegetables?.status !== 'Complete');
-  const historyTasks = pool.filter(b => b.departments?.vegetables?.status === 'Complete');
+  // Pending: Active bookings with Finalized menu only where vegetables status !== 'Complete'
+  const activePool = bookings.filter(
+    b => (b.status === 'active' || (!b.status && !b.closed && !b.cancelled)) && b.menu?.status === 'Finalized'
+  );
+  const pendingTasks = activePool.filter(b => b.departments?.vegetables?.status !== 'Complete');
+
+  // History: All completed vegetables tasks (active or closed) and closed/archived events
+  const historyTasks = bookings.filter(
+    b => b.departments?.vegetables?.status === 'Complete' || b.status === 'closed' || b.closed
+  );
 
   const currentList = activeTab === 'pending' ? pendingTasks : historyTasks;
   const viewMenuBooking = bookings.find(b => b.id === viewMenuBookingId);
