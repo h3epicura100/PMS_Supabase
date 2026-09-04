@@ -105,9 +105,9 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       {/* 1. Meta Block */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input
           label="Booking ID"
           value={initialValues?.id || 'PMS-2026-AUTO'}
@@ -127,7 +127,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
           <User className="w-4 h-4 text-pms-accent" />
           <span>Customer Contact</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <Input
             label="Customer Name"
             required
@@ -160,7 +160,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
           <span>Event Dates & Master Details</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <Select
             label="Function Type"
             required
@@ -199,14 +199,14 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
         </div>
 
         {/* 4. Interactive Schedule Builder */}
-        <div className="space-y-2 pt-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+        <div className="space-y-2.5 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
                 Event Schedule & Sessions
               </span>
-              <span className="text-[11px] text-slate-400">
-                (Specify meal sessions & pax for each day)
+              <span className="text-[11px] text-slate-400 block">
+                Specify meal sessions & pax for each day
               </span>
             </div>
 
@@ -215,7 +215,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
               size="sm"
               variant="outline"
               onClick={handleAddRow}
-              className="gap-1 text-xs"
+              className="w-full sm:w-auto gap-1 text-xs justify-center"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Session</span>
@@ -229,15 +229,16 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
             </div>
           )}
 
-          <div className="border border-slate-200 rounded-xl bg-white shadow-xs">
+          {/* DESKTOP VIEW: Clean Table Format (Hidden on Mobile) */}
+          <div className="hidden md:block border border-slate-200 rounded-xl bg-white shadow-xs">
             <div className="overflow-x-visible">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 rounded-t-xl">
-                    <th className="py-2.5 px-3 w-[160px] rounded-tl-xl">Session Date *</th>
-                    <th className="py-2.5 px-3 min-w-[220px]">Time / Session Label *</th>
-                    <th className="py-2.5 px-3 w-[120px]">Pax *</th>
-                    <th className="py-2.5 px-2 w-[50px] text-center rounded-tr-xl"></th>
+                    <th className="py-2.5 px-3 w-[28%] rounded-tl-xl">Session Date *</th>
+                    <th className="py-2.5 px-3 w-[44%]">Time / Session Label *</th>
+                    <th className="py-2.5 px-3 w-[18%] text-right">Pax *</th>
+                    <th className="py-2.5 px-2 w-[10%] text-center rounded-tr-xl"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -299,7 +300,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                             onClick={() => remove(index)}
                             disabled={fields.length === 1}
                             title={fields.length === 1 ? 'Minimum 1 session required' : 'Remove session'}
-                            className="p-1.5 text-slate-400 hover:text-red-500 disabled:text-slate-200 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-red-50"
+                            className="p-1.5 text-slate-400 hover:text-red-500 disabled:text-slate-200 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-red-50 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -322,6 +323,102 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
               </table>
             </div>
           </div>
+
+          {/* MOBILE VIEW: Card Format (Zero Horizontal Overflow, 100% Responsive) */}
+          <div className="space-y-3 md:hidden">
+            {fields.map((field, index) => {
+              const rowError = errors.eventSchedule?.[index];
+
+              return (
+                <div
+                  key={field.id}
+                  className="bg-slate-50/90 border border-slate-200 rounded-xl p-3 space-y-2.5 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/70">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-blue-100 text-pms-primary flex items-center justify-center text-[10px] font-bold">
+                        {index + 1}
+                      </span>
+                      <span>Session {index + 1}</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => remove(index)}
+                      disabled={fields.length === 1}
+                      title={fields.length === 1 ? 'Minimum 1 session required' : 'Remove session'}
+                      className="p-1 text-slate-400 hover:text-red-500 disabled:text-slate-200 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-1">
+                        Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        min={watchStartDate}
+                        max={watchEndDate}
+                        className={`w-full bg-white border rounded-lg text-xs px-2 py-1.5 focus:outline-none transition-colors ${
+                          rowError?.date ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-pms-accent'
+                        }`}
+                        {...register(`eventSchedule.${index}.date`)}
+                      />
+                      {rowError?.date && (
+                        <span className="text-[10px] text-red-500 block mt-0.5">{rowError.date.message}</span>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-slate-600 block mb-1">
+                        Pax <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Pax"
+                        className={`w-full bg-white border rounded-lg text-xs px-2 py-1.5 font-mono text-right focus:outline-none transition-colors ${
+                          rowError?.guestCount ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-pms-accent'
+                        }`}
+                        {...register(`eventSchedule.${index}.guestCount`)}
+                      />
+                      {rowError?.guestCount && (
+                        <span className="text-[10px] text-red-500 block mt-0.5">{rowError.guestCount.message}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-600 block mb-1">
+                      Time / Session Label <span className="text-red-500">*</span>
+                    </label>
+                    <EventTimeCombobox
+                      value={watch(`eventSchedule.${index}.timeLabel`) || ''}
+                      onChange={(val) =>
+                        setValue(`eventSchedule.${index}.timeLabel`, val, { shouldValidate: true })
+                      }
+                      placeholder="e.g. Lunch / SANGEET Dinner"
+                      error={rowError?.timeLabel?.message}
+                      className="text-xs py-1.5 rounded-lg"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Mobile Total Pax Banner */}
+            <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Total Pax:
+              </span>
+              <span className="font-mono font-bold text-base text-pms-primary">
+                {totalPax.toLocaleString()}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -331,7 +428,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
           <Share2 className="w-4 h-4 text-pms-accent" />
           <span>Reference & Remarks</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <Input
             label="Reference Name"
             optional
@@ -358,7 +455,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
       </div>
 
       {/* Form Action Footer */}
-      <div className="flex items-center justify-end gap-3 pt-5 border-t border-slate-200 mt-6">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 mt-5">
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
