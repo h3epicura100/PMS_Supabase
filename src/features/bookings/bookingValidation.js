@@ -6,9 +6,10 @@ export const scheduleItemSchema = z.object({
   timeLabel: z.string().min(1, 'Time / Session label is required'),
   guestCount: z.preprocess(
     (val) => (val === '' ? undefined : Number(val)),
-    z.number({ required_error: 'Pax is required', invalid_type_error: 'Pax must be a valid number' })
-      .min(1, 'Pax must be at least 1')
+    z.number({ required_error: 'Guest count is required', invalid_type_error: 'Guest count must be a valid number' })
+      .min(1, 'Guest count must be at least 1')
   ),
+
   sortOrder: z.number().optional(),
 });
 

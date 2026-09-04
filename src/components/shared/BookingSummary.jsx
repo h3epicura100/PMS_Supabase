@@ -63,7 +63,7 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
         <div className="flex items-center justify-between">
           <div>
             <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-              Total Pax
+              Total Guests
             </span>
             <span className="font-mono font-bold text-pms-primary text-sm block">
               {totalPax}

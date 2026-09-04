@@ -206,7 +206,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                 Event Schedule & Sessions
               </span>
               <span className="text-[11px] text-slate-400 block">
-                Specify meal sessions & pax for each day
+                Specify meal sessions & guest count for each day
               </span>
             </div>
 
@@ -237,7 +237,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 rounded-t-xl">
                     <th className="py-2.5 px-3 w-[28%] rounded-tl-xl">Session Date *</th>
                     <th className="py-2.5 px-3 w-[44%]">Time / Session Label *</th>
-                    <th className="py-2.5 px-3 w-[18%] text-right">Pax *</th>
+                    <th className="py-2.5 px-3 w-[18%] text-right">Guest Count *</th>
                     <th className="py-2.5 px-2 w-[10%] text-center rounded-tr-xl"></th>
                   </tr>
                 </thead>
@@ -280,7 +280,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                           <input
                             type="number"
                             min="1"
-                            placeholder="Pax"
+                            placeholder="Guests"
                             className={`w-full bg-white border rounded-lg text-xs px-2.5 py-1.5 font-mono text-right focus:outline-none transition-colors ${
                               rowError?.guestCount
                                 ? 'border-red-400 focus:border-red-500'
@@ -312,7 +312,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                 <tfoot>
                   <tr className="bg-slate-50 border-t border-slate-200 font-bold text-xs text-slate-800">
                     <td colSpan={2} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] text-slate-500">
-                      Total Pax Across All Sessions:
+                      Total Guest Count:
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono text-sm text-pms-primary">
                       {totalPax.toLocaleString()}
@@ -374,12 +374,12 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
 
                     <div>
                       <label className="text-[10px] font-semibold text-slate-600 block mb-1">
-                        Pax <span className="text-red-500">*</span>
+                        Guest Count <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="number"
                         min="1"
-                        placeholder="Pax"
+                        placeholder="Guests"
                         className={`w-full bg-white border rounded-lg text-xs px-2 py-1.5 font-mono text-right focus:outline-none transition-colors ${
                           rowError?.guestCount ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-pms-accent'
                         }`}
@@ -412,13 +412,14 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
             {/* Mobile Total Pax Banner */}
             <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-3 flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                Total Pax:
+                Total Guest Count:
               </span>
               <span className="font-mono font-bold text-base text-pms-primary">
                 {totalPax.toLocaleString()}
               </span>
             </div>
           </div>
+
         </div>
       </div>
 

@@ -66,7 +66,7 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                   <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
                     <div className="font-mono font-semibold text-slate-800">{paxDisplay}</div>
                     {sessionCount > 1 && (
-                      <span className="text-[10px] text-slate-400">Total Pax</span>
+                      <span className="text-[10px] text-slate-400">Total Guests</span>
                     )}
                   </td>
                   <td className="py-3 px-4 text-pms-muted">

@@ -38,7 +38,7 @@ export function EventScheduleTable({ schedule = [], showTotal = true, className 
             <th className="py-2.5 px-3.5">Session / Time Label</th>
             <th className="py-2.5 px-3.5 text-right flex items-center justify-end gap-1.5">
               <Users className="w-3.5 h-3.5 text-pms-accent" />
-              <span>Pax</span>
+              <span>Guest Count</span>
             </th>
           </tr>
         </thead>
@@ -63,7 +63,7 @@ export function EventScheduleTable({ schedule = [], showTotal = true, className 
           <tfoot>
             <tr className="bg-slate-50/90 border-t border-slate-200 font-bold text-xs text-slate-800">
               <td colSpan={2} className="py-2.5 px-3.5 text-right uppercase tracking-wider text-[11px] text-slate-500">
-                Total Pax Across All Sessions:
+                Total Guest Count:
               </td>
               <td className="py-2.5 px-3.5 text-right font-mono text-sm text-pms-primary">
                 {totalPax.toLocaleString()}
