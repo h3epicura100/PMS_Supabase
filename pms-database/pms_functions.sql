@@ -15,18 +15,19 @@ BEGIN
 END;
 $$;
 
--- 2. Fully Normalized Atomic create_booking RPC Procedure
+-- 2. Fully Normalized Atomic create_booking RPC Procedure (Multi-Day Schedule Support)
 DROP FUNCTION IF EXISTS pms_create_booking(text, text, text, text, date, time, integer, text, text, text, text, text);
 DROP FUNCTION IF EXISTS pms_create_booking(text, text, text, text, date, text, integer, text, text, text, text, text);
+DROP FUNCTION IF EXISTS pms_create_booking(text, text, text, text, date, date, jsonb, text, text, text, text, text);
 
 CREATE OR REPLACE FUNCTION pms_create_booking(
   p_customer_name    TEXT,
   p_customer_mobile  TEXT,
   p_alt_number       TEXT    DEFAULT NULL,
   p_function_type    TEXT    DEFAULT NULL,
-  p_event_date       DATE    DEFAULT NULL,
-  p_event_start      TEXT    DEFAULT NULL,
-  p_guest_count      INTEGER DEFAULT NULL,
+  p_event_start_date DATE    DEFAULT NULL,
+  p_event_end_date   DATE    DEFAULT NULL,
+  p_schedule         JSONB   DEFAULT '[]'::jsonb,
   p_venue_name       TEXT    DEFAULT NULL,
   p_reference_name   TEXT    DEFAULT NULL,
   p_reference_number TEXT    DEFAULT NULL,
@@ -41,6 +42,9 @@ DECLARE
   v_venue_id          UUID;
   v_reference_id      UUID;
   dept_rec            RECORD;
+  v_sched_item        JSONB;
+  v_idx               INTEGER := 0;
+  v_event_date        DATE;
 BEGIN
   -- 1. Upsert Customer (3NF)
   INSERT INTO pms_customers (name, mobile, alt_number)
@@ -76,25 +80,72 @@ BEGIN
 
   -- 5. Generate formatted Booking ID
   v_booking_id := pms_next_booking_id();
+  v_event_date := COALESCE(p_event_end_date, p_event_start_date);
 
   -- 6. Insert Booking Record referencing foreign keys
   INSERT INTO pms_bookings (
-    id, customer_id, function_type_id, event_date, event_start,
-    guest_count, venue_id, reference_id, remarks, created_by
+    id, customer_id, function_type_id,
+    event_start_date, event_end_date, event_date,
+    venue_id, reference_id, remarks, created_by
   ) VALUES (
-    v_booking_id, v_customer_id, v_function_type_id, p_event_date, p_event_start,
-    p_guest_count, v_venue_id, v_reference_id, p_remarks, p_created_by
+    v_booking_id, v_customer_id, v_function_type_id,
+    p_event_start_date, p_event_end_date, v_event_date,
+    v_venue_id, v_reference_id, p_remarks, p_created_by
   );
 
-  -- 7. Insert Initial Menu Task
+  -- 7. Insert Schedule entries if provided
+  IF p_schedule IS NOT NULL AND jsonb_array_length(p_schedule) > 0 THEN
+    FOR v_sched_item IN SELECT * FROM jsonb_array_elements(p_schedule) LOOP
+      INSERT INTO pms_event_schedule (
+        booking_id, event_date, time_label, guest_count, sort_order
+      ) VALUES (
+        v_booking_id,
+        (v_sched_item->>'date')::DATE,
+        COALESCE(v_sched_item->>'time_label', v_sched_item->>'timeLabel', 'Session'),
+        COALESCE((v_sched_item->>'guest_count')::INTEGER, (v_sched_item->>'guestCount')::INTEGER, 0),
+        v_idx
+      );
+      v_idx := v_idx + 1;
+    END LOOP;
+  END IF;
+
+  -- 8. Insert Initial Menu Task
   INSERT INTO pms_menu_tasks (booking_id) VALUES (v_booking_id);
 
-  -- 8. Insert Department Tasks for all defined departments in pms_departments
+  -- 9. Insert Department Tasks for all defined departments in pms_departments
   FOR dept_rec IN SELECT key FROM pms_departments ORDER BY sort_order LOOP
     INSERT INTO pms_department_tasks (booking_id, department_key)
     VALUES (v_booking_id, dept_rec.key);
   END LOOP;
 
   RETURN v_booking_id;
+END;
+$$;
+
+-- 3. Upsert Event Schedule RPC Procedure (for booking edits)
+CREATE OR REPLACE FUNCTION pms_upsert_event_schedule(
+  p_booking_id TEXT,
+  p_schedule   JSONB DEFAULT '[]'::jsonb
+)
+RETURNS VOID LANGUAGE plpgsql AS $$
+DECLARE
+  v_sched_item JSONB;
+  v_idx        INTEGER := 0;
+BEGIN
+  DELETE FROM pms_event_schedule WHERE booking_id = p_booking_id;
+  IF p_schedule IS NOT NULL AND jsonb_array_length(p_schedule) > 0 THEN
+    FOR v_sched_item IN SELECT * FROM jsonb_array_elements(p_schedule) LOOP
+      INSERT INTO pms_event_schedule (
+        booking_id, event_date, time_label, guest_count, sort_order
+      ) VALUES (
+        p_booking_id,
+        (v_sched_item->>'date')::DATE,
+        COALESCE(v_sched_item->>'time_label', v_sched_item->>'timeLabel', 'Session'),
+        COALESCE((v_sched_item->>'guest_count')::INTEGER, (v_sched_item->>'guestCount')::INTEGER, 0),
+        v_idx
+      );
+      v_idx := v_idx + 1;
+    END LOOP;
+  END IF;
 END;
 $$;

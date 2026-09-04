@@ -21,7 +21,7 @@ function ensureBookingShape(b) {
 
 export const bookingService = {
   /**
-   * Fetches real-time bookings strictly from Supabase.
+   * Fetches real-time bookings strictly from Supabase with joined schedule and department entries.
    */
   async getBookings() {
     const { data, error } = await supabase
@@ -31,7 +31,8 @@ export const bookingService = {
         pms_menu_tasks(*),
         pms_department_tasks(*),
         pms_vegetable_entries(*),
-        pms_cheese_dairy_entries(*)
+        pms_cheese_dairy_entries(*),
+        pms_event_schedule(*)
       `)
       .order('created_at', { ascending: false });
 
@@ -98,6 +99,19 @@ export const bookingService = {
 
       const menuTask = Array.isArray(b.pms_menu_tasks) ? b.pms_menu_tasks[0] : b.pms_menu_tasks;
 
+      const eventSchedule = (b.pms_event_schedule || []).map(s => ({
+        id: s.id,
+        date: s.event_date,
+        timeLabel: s.time_label,
+        guestCount: Number(s.guest_count || 0),
+        sortOrder: s.sort_order ?? 0,
+      })).sort((a, b) => a.sortOrder - b.sortOrder);
+
+      const computedTotalPax = eventSchedule.reduce((sum, s) => sum + (s.guestCount || 0), 0);
+      const totalGuestCount = b.total_guest_count != null ? Number(b.total_guest_count) : computedTotalPax;
+      const eventStartDate = b.event_start_date || b.event_date;
+      const eventEndDate = b.event_end_date || b.event_date;
+
       return ensureBookingShape({
         id: b.id,
         createdAt: b.created_at ? b.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -105,9 +119,12 @@ export const bookingService = {
         customerMobile: b.customer_mobile || '—',
         altNumber: b.alt_number,
         functionType: b.function_type,
-        eventDate: b.event_date,
-        eventStart: b.event_start,
-        guestCount: b.guest_count,
+        eventStartDate,
+        eventEndDate,
+        eventDate: eventEndDate || eventStartDate,
+        guestCount: totalGuestCount,
+        totalGuestCount,
+        eventSchedule,
         venueName: b.venue_name,
         referenceName: b.reference_name,
         referenceNumber: b.reference_number,
@@ -129,14 +146,21 @@ export const bookingService = {
    * Creates a new booking via atomic Supabase RPC pms_create_booking.
    */
   async createBooking(bookingData, createdBy = 'admin') {
+    const schedulePayload = (bookingData.eventSchedule || []).map((s, idx) => ({
+      date: s.date,
+      time_label: s.timeLabel,
+      guest_count: Number(s.guestCount),
+      sort_order: idx,
+    }));
+
     const { data, error } = await supabase.rpc('pms_create_booking', {
       p_customer_name: bookingData.customerName,
       p_customer_mobile: bookingData.customerMobile,
       p_alt_number: bookingData.altNumber || null,
       p_function_type: bookingData.functionType || null,
-      p_event_date: bookingData.eventDate,
-      p_event_start: bookingData.eventStart || null,
-      p_guest_count: bookingData.guestCount ? Number(bookingData.guestCount) : null,
+      p_event_start_date: bookingData.eventStartDate,
+      p_event_end_date: bookingData.eventEndDate,
+      p_schedule: schedulePayload,
       p_venue_name: bookingData.venueName || null,
       p_reference_name: bookingData.referenceName || null,
       p_reference_number: bookingData.referenceNumber || null,
@@ -156,19 +180,41 @@ export const bookingService = {
    * Updates an existing booking in Supabase.
    */
   async updateBooking(id, bookingData) {
-    const { error } = await supabase
+    const eventStartDate = bookingData.eventStartDate || bookingData.eventDate;
+    const eventEndDate = bookingData.eventEndDate || bookingData.eventDate;
+
+    const { error: bookingError } = await supabase
       .from('pms_bookings')
       .update({
-        event_date: bookingData.eventDate,
-        event_start: bookingData.eventStart,
-        guest_count: bookingData.guestCount ? Number(bookingData.guestCount) : null,
+        event_start_date: eventStartDate,
+        event_end_date: eventEndDate,
+        event_date: eventEndDate || eventStartDate,
         remarks: bookingData.remarks,
       })
       .eq('id', id);
 
-    if (error) {
-      console.error('Failed to update booking in Supabase:', error.message);
-      throw new Error(error.message || 'Failed to update booking.');
+    if (bookingError) {
+      console.error('Failed to update booking in Supabase:', bookingError.message);
+      throw new Error(bookingError.message || 'Failed to update booking.');
+    }
+
+    if (bookingData.eventSchedule && Array.isArray(bookingData.eventSchedule)) {
+      const schedulePayload = bookingData.eventSchedule.map((s, idx) => ({
+        date: s.date,
+        time_label: s.timeLabel,
+        guest_count: Number(s.guestCount),
+        sort_order: idx,
+      }));
+
+      const { error: schedError } = await supabase.rpc('pms_upsert_event_schedule', {
+        p_booking_id: id,
+        p_schedule: schedulePayload,
+      });
+
+      if (schedError) {
+        console.error('Failed to update event schedule in Supabase:', schedError.message);
+        throw new Error(schedError.message || 'Failed to update event schedule.');
+      }
     }
   },
 

@@ -9,9 +9,13 @@ CREATE OR REPLACE VIEW v_pms_bookings_expanded AS
 SELECT
   b.id,
   b.booking_date,
+  b.event_start_date,
+  b.event_end_date,
   b.event_date,
-  b.event_start,
-  b.guest_count,
+  COALESCE(
+    (SELECT SUM(guest_count) FROM pms_event_schedule WHERE booking_id = b.id),
+    0
+  )::INTEGER AS total_guest_count,
   b.remarks,
   b.status,
   b.created_by,
@@ -45,7 +49,7 @@ LEFT JOIN pms_references r ON r.id = b.reference_id;
 -- 2. View for Dashboard Statistics
 CREATE OR REPLACE VIEW pms_dashboard_stats AS
 WITH active_bk AS (
-  SELECT b.id, b.event_date, mt.status AS menu_status
+  SELECT b.id, COALESCE(b.event_end_date, b.event_date) AS event_anchor_date, mt.status AS menu_status
   FROM pms_bookings b
   LEFT JOIN pms_menu_tasks mt ON mt.booking_id = b.id
   WHERE b.status = 'active'
@@ -56,7 +60,7 @@ finalized_bk AS (
 dept_rows AS (
   SELECT
     dt.*,
-    (f.event_date - INTERVAL '1 day')::DATE AS planned_date
+    (f.event_anchor_date - INTERVAL '1 day')::DATE AS planned_date
   FROM pms_department_tasks dt
   JOIN finalized_bk f ON f.id = dt.booking_id
 ),
@@ -64,7 +68,7 @@ event_ready_cte AS (
   SELECT booking_id
   FROM dept_rows
   GROUP BY booking_id
-  HAVING COUNT(*) FILTER (WHERE status = 'Complete') = 7
+  HAVING COUNT(*) FILTER (WHERE status = 'Complete') = (SELECT COUNT(*) FROM pms_departments)
 )
 SELECT
   (SELECT COUNT(*) FROM active_bk)                                          AS total_active,
@@ -82,12 +86,14 @@ CREATE OR REPLACE VIEW pms_priority_tasks AS
 SELECT
   b.id           AS booking_id,
   c.name         AS customer_name,
-  b.event_date,
+  b.event_start_date,
+  b.event_end_date,
+  COALESCE(b.event_end_date, b.event_date) AS event_date,
   v.name         AS venue_name,
   dt.department_key AS department,
   d.label        AS department_label,
   dt.status,
-  (b.event_date - INTERVAL '1 day')::DATE AS planned_date,
+  (COALESCE(b.event_end_date, b.event_date) - INTERVAL '1 day')::DATE AS planned_date,
   dt.updated_by
 FROM pms_department_tasks dt
 JOIN pms_bookings b ON b.id = dt.booking_id
@@ -98,4 +104,4 @@ JOIN pms_menu_tasks mt ON mt.booking_id = b.id
 WHERE b.status = 'active'
   AND mt.status = 'Finalized'
   AND dt.status <> 'Complete'
-  AND (b.event_date - INTERVAL '1 day')::DATE <= CURRENT_DATE;
+  AND (COALESCE(b.event_end_date, b.event_date) - INTERVAL '1 day')::DATE <= CURRENT_DATE;

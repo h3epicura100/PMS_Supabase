@@ -1,9 +1,9 @@
 import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { Button } from '../../components/common/Button';
-import { formatDateDisplay } from '../../utils/dateUtils';
+import { formatDateRangeDisplay } from '../../utils/dateUtils';
 import { storageService } from '../../services/storageService';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, Calendar } from 'lucide-react';
 
 function AttachmentCell({ attachment }) {
   if (!attachment || (!attachment.name && !attachment.path)) {
@@ -65,6 +65,9 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
             {bookings.map((b) => {
               const displayRemarks = b.menu?.remarks || b.menu?.reason || '—';
               const menuStatus = b.menu?.status || (b.status === 'closed' || b.closed ? 'Finalized' : 'Pending');
+              const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
+              const sessionCount = b.eventSchedule?.length || 0;
+              const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
 
               return (
                 <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
@@ -83,14 +86,20 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                   <td className="py-3 px-4 font-semibold text-pms-text">
                     {b.customerName}
                   </td>
-                  <td className="py-3 px-4 text-pms-text font-medium">
-                    {formatDateDisplay(b.eventDate)}
+                  <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
+                    <div>{dateRange}</div>
+                    {sessionCount > 1 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
+                        <Calendar className="w-2.5 h-2.5" />
+                        {sessionCount} sessions
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-pms-muted">
                     {b.venueName || '—'}
                   </td>
-                  <td className="py-3 px-4 text-pms-text font-medium">
-                    {b.guestCount || '—'}
+                  <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
+                    <span className="font-mono font-semibold text-slate-800">{paxDisplay}</span>
                   </td>
                   <td className="py-3 px-4">
                     <StatusBadge status={menuStatus} />

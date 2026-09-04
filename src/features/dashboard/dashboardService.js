@@ -20,9 +20,10 @@ export const dashboardService = {
     // Flatten department rows across active bookings
     const activeDeptRows = [];
     activeBookings.forEach(b => {
+      const anchorDate = b.eventEndDate || b.eventDate;
       DEPT_LIST.forEach(cfg => {
         const deptData = b.departments?.[cfg.key] || {};
-        const plannedDate = derivedPlannedDate(b.eventDate);
+        const plannedDate = derivedPlannedDate(anchorDate);
         const delayInfo = calculateDelayInfo(plannedDate, deptData.status, deptData.updatedAt);
         activeDeptRows.push({
           booking: b,
@@ -55,16 +56,21 @@ export const dashboardService = {
     });
 
     // 2. Upcoming events: ACTIVE finalized bookings ONLY (excluding closed bookings)
-    const upcoming = [...activeFinalized].sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
+    const upcoming = [...activeFinalized].sort((a, b) => {
+      const dateA = a.eventStartDate || a.eventDate || '';
+      const dateB = b.eventStartDate || b.eventDate || '';
+      return dateA.localeCompare(dateB);
+    });
 
     // 3. Department performance aggregates across ALL events (active + completed/closed)
     const allDeptRows = [];
     bookings.forEach(b => {
       const isClosed = b.status === 'closed' || b.closed;
+      const anchorDate = b.eventEndDate || b.eventDate;
       DEPT_LIST.forEach(cfg => {
         const deptData = b.departments?.[cfg.key] || {};
         const effectiveStatus = isClosed ? 'Complete' : (deptData.status || 'Pending');
-        const plannedDate = derivedPlannedDate(b.eventDate);
+        const plannedDate = derivedPlannedDate(anchorDate);
         const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
         allDeptRows.push({
           booking: b,

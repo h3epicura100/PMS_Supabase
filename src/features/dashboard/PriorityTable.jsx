@@ -1,7 +1,7 @@
 import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { DelayBadge } from '../../components/shared/DelayBadge';
-import { formatDateDisplay } from '../../utils/dateUtils';
+import { formatDateDisplay, formatDateRangeDisplay } from '../../utils/dateUtils';
 
 export function PriorityTable({ items = [] }) {
   return (
@@ -33,6 +33,7 @@ export function PriorityTable({ items = [] }) {
               <tbody className="divide-y divide-pms-border">
                 {items.map(({ booking, deptConfig, deptData, plannedDate, delayInfo }) => {
                   const rowTint = delayInfo.cls === 'delayed' ? 'bg-red-50/50' : 'bg-amber-50/50';
+                  const dateRange = formatDateRangeDisplay(booking.eventStartDate || booking.eventDate, booking.eventEndDate || booking.eventDate);
 
                   return (
                     <tr key={`${booking.id}_${deptConfig.key}`} className={`${rowTint} hover:bg-slate-100/80 transition-colors`}>
@@ -45,10 +46,10 @@ export function PriorityTable({ items = [] }) {
                       <td className="py-3 px-4 font-medium text-pms-text">
                         {deptConfig.label}
                       </td>
-                      <td className="py-3 px-4 text-pms-text font-medium">
-                        {formatDateDisplay(booking.eventDate)}
+                      <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
+                        {dateRange}
                       </td>
-                      <td className="py-3 px-4 text-pms-muted font-medium">
+                      <td className="py-3 px-4 text-pms-muted font-medium whitespace-nowrap">
                         {formatDateDisplay(plannedDate)}
                       </td>
                       <td className="py-3 px-4">

@@ -1,8 +1,8 @@
 import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { Button } from '../../components/common/Button';
-import { formatDateDisplay } from '../../utils/dateUtils';
-import { Edit2, RotateCcw } from 'lucide-react';
+import { formatDateRangeDisplay } from '../../utils/dateUtils';
+import { Edit2, RotateCcw, Calendar, Users } from 'lucide-react';
 
 export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onReopen }) {
   if (!bookings.length) {
@@ -35,6 +35,9 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
           <tbody className="divide-y divide-pms-border">
             {bookings.map((b) => {
               const menuStatus = b.menu?.status === 'Finalized' ? 'Complete' : 'Pending';
+              const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
+              const sessionCount = b.eventSchedule?.length || 0;
+              const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
 
               return (
                 <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
@@ -46,13 +49,25 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                     <div className="text-[11px] text-pms-muted font-mono">{b.customerMobile}</div>
                   </td>
                   <td className="py-3 px-4 text-pms-text">
-                    {b.functionType || '—'}
+                    <span className="font-medium">{b.functionType || '—'}</span>
+                    {b.venueName && (
+                      <div className="text-[11px] text-pms-muted truncate max-w-[150px]">{b.venueName}</div>
+                    )}
                   </td>
-                  <td className="py-3 px-4 font-medium text-pms-text">
-                    {formatDateDisplay(b.eventDate)}
+                  <td className="py-3 px-4 font-medium text-pms-text whitespace-nowrap">
+                    <div>{dateRange}</div>
+                    {sessionCount > 1 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
+                        <Calendar className="w-2.5 h-2.5" />
+                        {sessionCount} sessions
+                      </span>
+                    )}
                   </td>
-                  <td className="py-3 px-4 text-pms-text font-medium">
-                    {b.guestCount || '—'}
+                  <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
+                    <div className="font-mono font-semibold text-slate-800">{paxDisplay}</div>
+                    {sessionCount > 1 && (
+                      <span className="text-[10px] text-slate-400">Total Pax</span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-pms-muted">
                     <div>{b.referenceName || '—'}</div>

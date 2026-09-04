@@ -79,8 +79,10 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       onClose={onClose}
       title={`Menu Decision — ${booking.id}`}
       subtitle="Lock or reject the menu for this booking."
+      maxWidth="max-w-3xl"
     >
-      <BookingSummary booking={booking} />
+      <BookingSummary booking={booking} defaultOpenSchedule={true} />
+
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Status Pills */}

@@ -4,7 +4,7 @@
 -- Instructions: Copy ALL of this text, paste into Supabase SQL Editor, and click 'Run'.
 -- ============================================================
 
-  CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 1. USERS TABLE
 CREATE TABLE IF NOT EXISTS pms_users (
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS pms_references (
 CREATE TABLE IF NOT EXISTS pms_departments (
   key        TEXT PRIMARY KEY,                       -- 'chef', 'tagPrints', etc.
   label      TEXT NOT NULL,
-  dept_type   TEXT NOT NULL DEFAULT 'simple'
+  dept_type  TEXT NOT NULL DEFAULT 'simple'
     CHECK (dept_type IN ('simple','vegetables','cheeseDairy')),
   sort_order INTEGER NOT NULL DEFAULT 0
 );
@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS pms_bookings (
   booking_date     DATE NOT NULL DEFAULT CURRENT_DATE,
   customer_id      UUID NOT NULL REFERENCES pms_customers(id) ON DELETE RESTRICT,
   function_type_id INTEGER REFERENCES pms_function_types(id) ON DELETE SET NULL,
-  event_date       DATE NOT NULL,
-  event_start      TEXT,
-  guest_count      INTEGER CHECK (guest_count IS NULL OR guest_count > 0),
+  event_start_date DATE,
+  event_end_date   DATE,
+  event_date       DATE NOT NULL,                     -- Anchor date (defaults to event_end_date)
   venue_id         UUID REFERENCES pms_venues(id) ON DELETE SET NULL,
   reference_id     UUID REFERENCES pms_references(id) ON DELETE SET NULL,
   remarks          TEXT,
@@ -103,7 +103,31 @@ CREATE TABLE IF NOT EXISTS pms_bookings (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 11. MENU TASKS TABLE (3NF 1-to-1 extension)
+-- Migration support if table already exists (drop dependent views first)
+DROP VIEW IF EXISTS v_pms_bookings_expanded CASCADE;
+DROP VIEW IF EXISTS pms_dashboard_stats CASCADE;
+DROP VIEW IF EXISTS pms_priority_tasks CASCADE;
+
+ALTER TABLE pms_bookings DROP COLUMN IF EXISTS event_start;
+ALTER TABLE pms_bookings DROP COLUMN IF EXISTS guest_count;
+ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS event_start_date DATE;
+ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS event_end_date DATE;
+
+
+-- 11. EVENT SCHEDULE TABLE (Multi-Day Sessions with Time Label & Pax)
+CREATE TABLE IF NOT EXISTS pms_event_schedule (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id   TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
+  event_date   DATE NOT NULL,
+  time_label   TEXT NOT NULL,
+  guest_count  INTEGER NOT NULL CHECK (guest_count > 0),
+  sort_order   INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_event_schedule_booking
+  ON pms_event_schedule (booking_id, event_date, sort_order);
+
+-- 12. MENU TASKS TABLE (3NF 1-to-1 extension)
 CREATE TABLE IF NOT EXISTS pms_menu_tasks (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id        TEXT NOT NULL UNIQUE REFERENCES pms_bookings(id) ON DELETE CASCADE,
@@ -119,7 +143,7 @@ CREATE TABLE IF NOT EXISTS pms_menu_tasks (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 12. DEPARTMENT TASKS TABLE (3NF Weak Entity referenced to pms_departments)
+-- 13. DEPARTMENT TASKS TABLE (3NF Weak Entity referenced to pms_departments)
 CREATE TABLE IF NOT EXISTS pms_department_tasks (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id      TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
@@ -136,7 +160,7 @@ CREATE TABLE IF NOT EXISTS pms_department_tasks (
   UNIQUE (booking_id, department_key)
 );
 
--- 13. VEGETABLE ENTRIES TABLE (3NF Weak Entity for dynamic array)
+-- 14. VEGETABLE ENTRIES TABLE (3NF Weak Entity for dynamic array)
 CREATE TABLE IF NOT EXISTS pms_vegetable_entries (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id      TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
@@ -156,10 +180,49 @@ CREATE TABLE IF NOT EXISTS pms_vegetable_entries (
   completed_at    TIMESTAMPTZ
 );
 
--- 14. BOOKING ID SEQUENCE
+-- 15. CHEESE & DAIRY ENTRIES TABLE (3NF Weak Entity for dynamic array)
+CREATE TABLE IF NOT EXISTS pms_cheese_dairy_entries (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id      TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  item_type       TEXT NOT NULL DEFAULT 'Normal'
+    CHECK (item_type IN ('Normal','English')),
+  source          TEXT
+    CHECK (source IS NULL OR source IN ('Local','Outstation')),
+  status          TEXT NOT NULL DEFAULT 'Pending'
+    CHECK (status IN ('Pending','Complete')),
+  remarks         TEXT,
+  attachment_id   UUID REFERENCES pms_attachments(id) ON DELETE SET NULL,
+  attachment_path TEXT,
+  attachment_name TEXT,
+  updated_by      TEXT,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at    TIMESTAMPTZ
+);
+
+-- 16. EVENT TIMES MASTER TABLE
+CREATE TABLE IF NOT EXISTS pms_event_times (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT UNIQUE NOT NULL,
+  sort_order  INTEGER DEFAULT 0
+);
+
+INSERT INTO pms_event_times (name, sort_order) VALUES
+('Lunch', 1),
+('Dinner', 2),
+('Breakfast', 3),
+('Brunch', 4),
+('High Tea', 5),
+('Evening Snacks', 6),
+('Late Night', 7),
+('All Day', 8),
+('Custom', 9)
+ON CONFLICT (name) DO NOTHING;
+
+-- 17. BOOKING ID SEQUENCE
 CREATE SEQUENCE IF NOT EXISTS pms_booking_seq START 1;
 
--- 15. TIMESTAMP UPDATER TRIGGERS
+-- 18. TIMESTAMP UPDATER TRIGGERS
 CREATE OR REPLACE FUNCTION pms_set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -178,18 +241,19 @@ CREATE TRIGGER trg_pms_customers_updated_at
   BEFORE UPDATE ON pms_customers
   FOR EACH ROW EXECUTE FUNCTION pms_set_updated_at();
 
--- 16. SEED DATA: DEPARTMENTS
+-- 19. SEED DATA: DEPARTMENTS
 INSERT INTO pms_departments (key, label, dept_type, sort_order) VALUES
-  ('chef',               'Inform to Chef',         'simple',     1),
-  ('tagPrints',          'Tag Print',              'simple',     2),
-  ('dress',              'Dress',                  'simple',     3),
-  ('decor',              'Decor List',             'simple',     4),
-  ('crockery',           'Crockery List',          'simple',     5),
-  ('kitchenRawMaterial', 'Kitchen & Raw Material', 'simple',     6),
-  ('vegetables',         'Vegetables',             'vegetables', 7)
+  ('chef',               'Inform to Chef',          'simple',      1),
+  ('tagPrints',          'Tag Print',               'simple',      2),
+  ('dress',              'Dress',                   'simple',      3),
+  ('decor',              'Decor List',              'simple',      4),
+  ('crockery',           'Crockery List',           'simple',      5),
+  ('kitchenRawMaterial', 'Kitchen & Raw Material',  'simple',      6),
+  ('vegetables',         'Vegetables',              'vegetables',  7),
+  ('cheeseDairy',        'Cheese & Dairy Products', 'cheeseDairy', 8)
 ON CONFLICT (key) DO UPDATE SET label = EXCLUDED.label, dept_type = EXCLUDED.dept_type, sort_order = EXCLUDED.sort_order;
 
--- 17. SEED DATA: PERMISSIONS
+-- 20. SEED DATA: PERMISSIONS
 INSERT INTO pms_permissions (key, label) VALUES
   ('bookings',           'Bookings'),
   ('menuFinalize',       'Menu Finalize'),
@@ -199,20 +263,21 @@ INSERT INTO pms_permissions (key, label) VALUES
   ('decor',              'Decor List'),
   ('crockery',           'Crockery List'),
   ('kitchenRawMaterial', 'Kitchen & Raw Material'),
-  ('vegetables',         'Vegetables')
+  ('vegetables',         'Vegetables'),
+  ('cheeseDairy',        'Cheese & Dairy Products')
 ON CONFLICT (key) DO UPDATE SET label = EXCLUDED.label;
 
--- 18. SEED DATA: FUNCTION TYPES
+-- 21. SEED DATA: FUNCTION TYPES
 INSERT INTO pms_function_types (name) VALUES
   ('Wedding'), ('Birthday'), ('Corporate'), ('Engagement'), ('Anniversary'), ('Other')
 ON CONFLICT (name) DO NOTHING;
 
--- 19. SEED DATA: DEFAULT ADMIN USER
+-- 22. SEED DATA: DEFAULT ADMIN USER
 INSERT INTO pms_users (id, password_hash, display_name, role, has_full_access)
 VALUES ('admin', 'admin123', 'Administrator', 'admin', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
--- 20. RPC FUNCTION: GENERATE BOOKING ID
+-- 23. RPC FUNCTION: GENERATE BOOKING ID
 CREATE OR REPLACE FUNCTION pms_next_booking_id()
 RETURNS TEXT LANGUAGE plpgsql AS $$
 DECLARE
@@ -223,18 +288,19 @@ BEGIN
 END;
 $$;
 
--- 21. RPC FUNCTION: ATOMIC CREATE BOOKING (3NF)
+-- 24. RPC FUNCTION: ATOMIC CREATE BOOKING (Multi-Day Schedule Support)
 DROP FUNCTION IF EXISTS pms_create_booking(text, text, text, text, date, time, integer, text, text, text, text, text);
 DROP FUNCTION IF EXISTS pms_create_booking(text, text, text, text, date, text, integer, text, text, text, text, text);
+DROP FUNCTION IF EXISTS pms_create_booking(text, text, text, text, date, date, jsonb, text, text, text, text, text);
 
 CREATE OR REPLACE FUNCTION pms_create_booking(
   p_customer_name    TEXT,
   p_customer_mobile  TEXT,
   p_alt_number       TEXT    DEFAULT NULL,
   p_function_type    TEXT    DEFAULT NULL,
-  p_event_date       DATE    DEFAULT NULL,
-  p_event_start      TEXT    DEFAULT NULL,
-  p_guest_count      INTEGER DEFAULT NULL,
+  p_event_start_date DATE    DEFAULT NULL,
+  p_event_end_date   DATE    DEFAULT NULL,
+  p_schedule         JSONB   DEFAULT '[]'::jsonb,
   p_venue_name       TEXT    DEFAULT NULL,
   p_reference_name   TEXT    DEFAULT NULL,
   p_reference_number TEXT    DEFAULT NULL,
@@ -249,6 +315,9 @@ DECLARE
   v_venue_id          UUID;
   v_reference_id      UUID;
   dept_rec            RECORD;
+  v_sched_item        JSONB;
+  v_idx               INTEGER := 0;
+  v_event_date        DATE;
 BEGIN
   -- 1. Upsert Customer (3NF)
   INSERT INTO pms_customers (name, mobile, alt_number)
@@ -284,20 +353,39 @@ BEGIN
 
   -- 5. Generate formatted Booking ID
   v_booking_id := pms_next_booking_id();
+  v_event_date := COALESCE(p_event_end_date, p_event_start_date);
 
   -- 6. Insert Booking Record referencing foreign keys
   INSERT INTO pms_bookings (
-    id, customer_id, function_type_id, event_date, event_start,
-    guest_count, venue_id, reference_id, remarks, created_by
+    id, customer_id, function_type_id,
+    event_start_date, event_end_date, event_date,
+    venue_id, reference_id, remarks, created_by
   ) VALUES (
-    v_booking_id, v_customer_id, v_function_type_id, p_event_date, p_event_start,
-    p_guest_count, v_venue_id, v_reference_id, p_remarks, p_created_by
+    v_booking_id, v_customer_id, v_function_type_id,
+    p_event_start_date, p_event_end_date, v_event_date,
+    v_venue_id, v_reference_id, p_remarks, p_created_by
   );
 
-  -- 7. Insert Initial Menu Task
+  -- 7. Insert Schedule entries if provided
+  IF p_schedule IS NOT NULL AND jsonb_array_length(p_schedule) > 0 THEN
+    FOR v_sched_item IN SELECT * FROM jsonb_array_elements(p_schedule) LOOP
+      INSERT INTO pms_event_schedule (
+        booking_id, event_date, time_label, guest_count, sort_order
+      ) VALUES (
+        v_booking_id,
+        (v_sched_item->>'date')::DATE,
+        COALESCE(v_sched_item->>'time_label', v_sched_item->>'timeLabel', 'Session'),
+        COALESCE((v_sched_item->>'guest_count')::INTEGER, (v_sched_item->>'guestCount')::INTEGER, 0),
+        v_idx
+      );
+      v_idx := v_idx + 1;
+    END LOOP;
+  END IF;
+
+  -- 8. Insert Initial Menu Task
   INSERT INTO pms_menu_tasks (booking_id) VALUES (v_booking_id);
 
-  -- 8. Insert Department Tasks for all defined departments in pms_departments
+  -- 9. Insert Department Tasks for all defined departments in pms_departments
   FOR dept_rec IN SELECT key FROM pms_departments ORDER BY sort_order LOOP
     INSERT INTO pms_department_tasks (booking_id, department_key)
     VALUES (v_booking_id, dept_rec.key);
@@ -307,14 +395,46 @@ BEGIN
 END;
 $$;
 
--- 22. EXPANDED VIEW: FLAT COMPATIBILITY FOR QUERYING BOOKINGS
+-- 25. RPC FUNCTION: UPSERT EVENT SCHEDULE
+CREATE OR REPLACE FUNCTION pms_upsert_event_schedule(
+  p_booking_id TEXT,
+  p_schedule   JSONB DEFAULT '[]'::jsonb
+)
+RETURNS VOID LANGUAGE plpgsql AS $$
+DECLARE
+  v_sched_item JSONB;
+  v_idx        INTEGER := 0;
+BEGIN
+  DELETE FROM pms_event_schedule WHERE booking_id = p_booking_id;
+  IF p_schedule IS NOT NULL AND jsonb_array_length(p_schedule) > 0 THEN
+    FOR v_sched_item IN SELECT * FROM jsonb_array_elements(p_schedule) LOOP
+      INSERT INTO pms_event_schedule (
+        booking_id, event_date, time_label, guest_count, sort_order
+      ) VALUES (
+        p_booking_id,
+        (v_sched_item->>'date')::DATE,
+        COALESCE(v_sched_item->>'time_label', v_sched_item->>'timeLabel', 'Session'),
+        COALESCE((v_sched_item->>'guest_count')::INTEGER, (v_sched_item->>'guestCount')::INTEGER, 0),
+        v_idx
+      );
+      v_idx := v_idx + 1;
+    END LOOP;
+  END IF;
+END;
+$$;
+
+-- 26. EXPANDED VIEW: FLAT COMPATIBILITY FOR QUERYING BOOKINGS
 CREATE OR REPLACE VIEW v_pms_bookings_expanded AS
 SELECT
   b.id,
   b.booking_date,
+  b.event_start_date,
+  b.event_end_date,
   b.event_date,
-  b.event_start,
-  b.guest_count,
+  COALESCE(
+    (SELECT SUM(guest_count) FROM pms_event_schedule WHERE booking_id = b.id),
+    0
+  )::INTEGER AS total_guest_count,
   b.remarks,
   b.status,
   b.created_by,
@@ -345,10 +465,10 @@ LEFT JOIN pms_function_types ft ON ft.id = b.function_type_id
 LEFT JOIN pms_venues v ON v.id = b.venue_id
 LEFT JOIN pms_references r ON r.id = b.reference_id;
 
--- 23. VIEW: DASHBOARD STATS
+-- 27. VIEW: DASHBOARD STATS
 CREATE OR REPLACE VIEW pms_dashboard_stats AS
 WITH active_bk AS (
-  SELECT b.id, b.event_date, mt.status AS menu_status
+  SELECT b.id, COALESCE(b.event_end_date, b.event_date) AS event_anchor_date, mt.status AS menu_status
   FROM pms_bookings b
   LEFT JOIN pms_menu_tasks mt ON mt.booking_id = b.id
   WHERE b.status = 'active'
@@ -359,7 +479,7 @@ finalized_bk AS (
 dept_rows AS (
   SELECT
     dt.*,
-    (f.event_date - INTERVAL '1 day')::DATE AS planned_date
+    (f.event_anchor_date - INTERVAL '1 day')::DATE AS planned_date
   FROM pms_department_tasks dt
   JOIN finalized_bk f ON f.id = dt.booking_id
 ),
@@ -367,7 +487,7 @@ event_ready_cte AS (
   SELECT booking_id
   FROM dept_rows
   GROUP BY booking_id
-  HAVING COUNT(*) FILTER (WHERE status = 'Complete') = 7
+  HAVING COUNT(*) FILTER (WHERE status = 'Complete') = (SELECT COUNT(*) FROM pms_departments)
 )
 SELECT
   (SELECT COUNT(*) FROM active_bk)                                          AS total_active,
@@ -380,17 +500,19 @@ SELECT
      WHERE status <> 'Complete' AND planned_date < CURRENT_DATE)            AS delayed,
   (SELECT COUNT(*) FROM event_ready_cte)                                    AS event_ready;
 
--- 24. VIEW: PRIORITY TASKS
+-- 28. VIEW: PRIORITY TASKS
 CREATE OR REPLACE VIEW pms_priority_tasks AS
 SELECT
   b.id           AS booking_id,
   c.name         AS customer_name,
-  b.event_date,
+  b.event_start_date,
+  b.event_end_date,
+  COALESCE(b.event_end_date, b.event_date) AS event_date,
   v.name         AS venue_name,
   dt.department_key AS department,
   d.label        AS department_label,
   dt.status,
-  (b.event_date - INTERVAL '1 day')::DATE AS planned_date,
+  (COALESCE(b.event_end_date, b.event_date) - INTERVAL '1 day')::DATE AS planned_date,
   dt.updated_by
 FROM pms_department_tasks dt
 JOIN pms_bookings b ON b.id = dt.booking_id
@@ -401,4 +523,4 @@ JOIN pms_menu_tasks mt ON mt.booking_id = b.id
 WHERE b.status = 'active'
   AND mt.status = 'Finalized'
   AND dt.status <> 'Complete'
-  AND (b.event_date - INTERVAL '1 day')::DATE <= CURRENT_DATE;
+  AND (COALESCE(b.event_end_date, b.event_date) - INTERVAL '1 day')::DATE <= CURRENT_DATE;

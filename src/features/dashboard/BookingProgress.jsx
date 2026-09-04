@@ -1,6 +1,7 @@
 import React from 'react';
-import { formatDateDisplay } from '../../utils/dateUtils';
+import { formatDateRangeDisplay } from '../../utils/dateUtils';
 import { calculatePipelineInfo } from '../../utils/bookingUtils';
+import { Calendar } from 'lucide-react';
 
 export function BookingProgress({ bookings = [] }) {
   return (
@@ -31,6 +32,8 @@ export function BookingProgress({ bookings = [] }) {
               <tbody className="divide-y divide-pms-border">
                 {bookings.map((b) => {
                   const info = calculatePipelineInfo(b);
+                  const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
+                  const sessionCount = b.eventSchedule?.length || 0;
 
                   return (
                     <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
@@ -40,8 +43,14 @@ export function BookingProgress({ bookings = [] }) {
                       <td className="py-3 px-4 font-semibold text-pms-text">
                         {b.customerName}
                       </td>
-                      <td className="py-3 px-4 text-pms-text font-medium">
-                        {formatDateDisplay(b.eventDate)}
+                      <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
+                        <div>{dateRange}</div>
+                        {sessionCount > 1 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
+                            <Calendar className="w-2.5 h-2.5" />
+                            {sessionCount} sessions
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 min-w-[140px]">
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-1">

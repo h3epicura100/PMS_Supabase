@@ -90,9 +90,9 @@ CREATE TABLE IF NOT EXISTS pms_bookings (
   booking_date     DATE NOT NULL DEFAULT CURRENT_DATE,
   customer_id      UUID NOT NULL REFERENCES pms_customers(id) ON DELETE RESTRICT,
   function_type_id INTEGER REFERENCES pms_function_types(id) ON DELETE SET NULL,
-  event_date       DATE NOT NULL,
-  event_start      TEXT,
-  guest_count      INTEGER CHECK (guest_count IS NULL OR guest_count > 0),
+  event_start_date DATE,
+  event_end_date   DATE,
+  event_date       DATE NOT NULL,                     -- Anchor date (defaults to event_end_date)
   venue_id         UUID REFERENCES pms_venues(id) ON DELETE SET NULL,
   reference_id     UUID REFERENCES pms_references(id) ON DELETE SET NULL,
   remarks          TEXT,
@@ -103,7 +103,31 @@ CREATE TABLE IF NOT EXISTS pms_bookings (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 11. MENU TASKS TABLE (3NF 1-to-1 extension)
+-- Migration support if table already exists (drop dependent views first)
+DROP VIEW IF EXISTS v_pms_bookings_expanded CASCADE;
+DROP VIEW IF EXISTS pms_dashboard_stats CASCADE;
+DROP VIEW IF EXISTS pms_priority_tasks CASCADE;
+
+ALTER TABLE pms_bookings DROP COLUMN IF EXISTS event_start;
+ALTER TABLE pms_bookings DROP COLUMN IF EXISTS guest_count;
+ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS event_start_date DATE;
+ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS event_end_date DATE;
+
+
+-- 11. EVENT SCHEDULE TABLE (Multi-Day Sessions with Time Label & Pax)
+CREATE TABLE IF NOT EXISTS pms_event_schedule (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id   TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
+  event_date   DATE NOT NULL,
+  time_label   TEXT NOT NULL,
+  guest_count  INTEGER NOT NULL CHECK (guest_count > 0),
+  sort_order   INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_event_schedule_booking
+  ON pms_event_schedule (booking_id, event_date, sort_order);
+
+-- 12. MENU TASKS TABLE (3NF 1-to-1 extension)
 CREATE TABLE IF NOT EXISTS pms_menu_tasks (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id        TEXT NOT NULL UNIQUE REFERENCES pms_bookings(id) ON DELETE CASCADE,
@@ -119,7 +143,7 @@ CREATE TABLE IF NOT EXISTS pms_menu_tasks (
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 12. DEPARTMENT TASKS TABLE (3NF Weak Entity referenced to pms_departments)
+-- 13. DEPARTMENT TASKS TABLE (3NF Weak Entity referenced to pms_departments)
 CREATE TABLE IF NOT EXISTS pms_department_tasks (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id      TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
@@ -136,13 +160,33 @@ CREATE TABLE IF NOT EXISTS pms_department_tasks (
   UNIQUE (booking_id, department_key)
 );
 
--- 13. VEGETABLE ENTRIES TABLE (3NF Weak Entity for dynamic array)
+-- 14. VEGETABLE ENTRIES TABLE (3NF Weak Entity for dynamic array)
 CREATE TABLE IF NOT EXISTS pms_vegetable_entries (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id      TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
   sort_order      INTEGER NOT NULL DEFAULT 0,
   veg_type        TEXT NOT NULL DEFAULT 'Normal'
     CHECK (veg_type IN ('Normal','English')),
+  source          TEXT
+    CHECK (source IS NULL OR source IN ('Local','Outstation')),
+  status          TEXT NOT NULL DEFAULT 'Pending'
+    CHECK (status IN ('Pending','Complete')),
+  remarks         TEXT,
+  attachment_id   UUID REFERENCES pms_attachments(id) ON DELETE SET NULL,
+  attachment_path TEXT,
+  attachment_name TEXT,
+  updated_by      TEXT,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at    TIMESTAMPTZ
+);
+
+-- 15. CHEESE & DAIRY ENTRIES TABLE (3NF Weak Entity for dynamic array)
+CREATE TABLE IF NOT EXISTS pms_cheese_dairy_entries (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id      TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  item_type       TEXT NOT NULL DEFAULT 'Normal'
+    CHECK (item_type IN ('Normal','English')),
   source          TEXT
     CHECK (source IS NULL OR source IN ('Local','Outstation')),
   status          TEXT NOT NULL DEFAULT 'Pending'

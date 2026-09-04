@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../../components/common/Button';
-import { formatDateDisplay } from '../../utils/dateUtils';
+import { formatDateRangeDisplay } from '../../utils/dateUtils';
 import { CheckCircle2, Archive } from 'lucide-react';
 
 export function ReadyToClose({ bookings = [], closedBookings = [], onCloseBooking }) {
@@ -20,64 +20,72 @@ export function ReadyToClose({ bookings = [], closedBookings = [], onCloseBookin
       ) : (
         <div className="space-y-2">
           {/* 1. Ready to Close (Active) */}
-          {bookings.map((b) => (
-            <div
-              key={b.id}
-              className="bg-white border border-pms-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
-            >
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                <div>
-                  <div className="text-sm font-semibold text-pms-text">
-                    <span className="font-mono text-pms-primary mr-2">{b.id}</span>
-                    <span>{b.customerName}</span>
-                    <span className="text-pms-muted font-normal text-xs ml-2">
-                      · {formatDateDisplay(b.eventDate)}
-                    </span>
-                  </div>
-                  <div className="text-xs text-emerald-600 font-medium">
-                    All department tasks complete — Ready to close
+          {bookings.map((b) => {
+            const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
+
+            return (
+              <div
+                key={b.id}
+                className="bg-white border border-pms-border rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold text-pms-text">
+                      <span className="font-mono text-pms-primary mr-2">{b.id}</span>
+                      <span>{b.customerName}</span>
+                      <span className="text-pms-muted font-normal text-xs ml-2">
+                        · {dateRange}
+                      </span>
+                    </div>
+                    <div className="text-xs text-emerald-600 font-medium">
+                      All department tasks complete — Ready to close
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => onCloseBooking(b.id)}
-              >
-                Move to History
-              </Button>
-            </div>
-          ))}
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => onCloseBooking(b.id)}
+                >
+                  Move to History
+                </Button>
+              </div>
+            );
+          })}
 
           {/* 2. Closed / History Bookings */}
-          {closedBookings.map((b) => (
-            <div
-              key={b.id}
-              className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
-            >
-              <div className="flex items-center gap-3">
-                <Archive className="w-5 h-5 text-slate-500 flex-shrink-0" />
-                <div>
-                  <div className="text-sm font-semibold text-slate-700">
-                    <span className="font-mono text-slate-500 mr-2">{b.id}</span>
-                    <span>{b.customerName}</span>
-                    <span className="text-slate-400 font-normal text-xs ml-2">
-                      · {formatDateDisplay(b.eventDate)}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-500 font-medium">
-                    Closed & Archived Event
+          {closedBookings.map((b) => {
+            const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
+
+            return (
+              <div
+                key={b.id}
+                className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <Archive className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700">
+                      <span className="font-mono text-slate-500 mr-2">{b.id}</span>
+                      <span>{b.customerName}</span>
+                      <span className="text-slate-400 font-normal text-xs ml-2">
+                        · {dateRange}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium">
+                      Closed & Archived Event
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <span className="text-xs font-bold text-slate-500 bg-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">
-                Closed
-              </span>
-            </div>
-          ))}
+                <span className="text-xs font-bold text-slate-500 bg-slate-200 px-3 py-1 rounded-full uppercase tracking-wider">
+                  Closed
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

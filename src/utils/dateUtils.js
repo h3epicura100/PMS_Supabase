@@ -15,6 +15,14 @@ export function formatDateDisplay(dateString) {
   }
 }
 
+export function formatDateRangeDisplay(startDate, endDate) {
+  if (!startDate && !endDate) return '—';
+  if (!startDate) return formatDateDisplay(endDate);
+  if (!endDate || startDate === endDate) return formatDateDisplay(startDate);
+  
+  return `${formatDateDisplay(startDate)} – ${formatDateDisplay(endDate)}`;
+}
+
 export function formatDateTimeDisplay(dateString) {
   if (!dateString) return '—';
   try {
@@ -25,3 +33,4 @@ export function formatDateTimeDisplay(dateString) {
     return dateString;
   }
 }
+

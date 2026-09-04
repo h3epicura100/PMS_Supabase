@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingSchema } from './bookingValidation';
@@ -8,11 +8,11 @@ import { Input } from '../../components/common/Input';
 import { Select } from '../../components/common/Select';
 import { Textarea } from '../../components/common/Textarea';
 import { Button } from '../../components/common/Button';
+import { EventTimeCombobox } from '../../components/common/EventTimeCombobox';
 import { todayStr } from '../../utils/dateUtils';
-import { User, Calendar, Share2 } from 'lucide-react';
+import { User, Calendar, Share2, Plus, Trash2, Users, AlertCircle } from 'lucide-react';
 
 const DEFAULT_FUNCTION_TYPES = ['Wedding', 'Birthday', 'Corporate', 'Engagement', 'Anniversary', 'Other'];
-const DEFAULT_EVENT_TIME_OPTIONS = ['Lunch', 'Dinner', 'Breakfast', 'Brunch', 'High Tea', 'Evening Snacks', 'Late Night', 'All Day', 'Custom'];
 
 export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting }) {
   // Query dynamic master options
@@ -24,30 +24,33 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
     },
   });
 
-  const { data: eventTimeOptions = DEFAULT_EVENT_TIME_OPTIONS } = useQuery({
-    queryKey: ['master_event_times'],
-    queryFn: async () => {
-      const res = await masterService.getEventTimes();
-      const names = res.map(x => x.name);
-      if (!names.includes('Custom')) names.push('Custom');
-      return names;
-    },
-  });
+  const defaultStartDate = initialValues?.eventStartDate || initialValues?.eventDate || '';
+  const defaultEndDate = initialValues?.eventEndDate || initialValues?.eventDate || defaultStartDate || '';
 
-  const initialEventStart = initialValues?.eventStart || 'Lunch';
-  const isPreset = eventTimeOptions.includes(initialEventStart);
-
-  const [selectedTimeOption, setSelectedTimeOption] = useState(
-    isPreset ? initialEventStart : 'Custom'
-  );
-  const [customTimeText, setCustomTimeText] = useState(
-    isPreset ? '' : (initialValues?.eventStart || '')
-  );
-  const [timeError, setTimeError] = useState('');
+  // Initial schedule items fallback
+  const initialSchedule = (initialValues?.eventSchedule && initialValues.eventSchedule.length > 0)
+    ? initialValues.eventSchedule.map((s, idx) => ({
+        id: s.id || String(idx),
+        date: s.date || defaultStartDate || todayStr(),
+        timeLabel: s.timeLabel || 'Lunch',
+        guestCount: s.guestCount || 100,
+        sortOrder: s.sortOrder ?? idx,
+      }))
+    : [
+        {
+          date: defaultStartDate || todayStr(),
+          timeLabel: initialValues?.eventStart || 'Lunch',
+          guestCount: initialValues?.guestCount || 100,
+          sortOrder: 0,
+        },
+      ];
 
   const {
     register,
+    control,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(bookingSchema),
@@ -56,33 +59,53 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
       customerMobile: initialValues?.customerMobile || '',
       altNumber: initialValues?.altNumber || '',
       functionType: initialValues?.functionType || functionTypes[0] || 'Wedding',
-      eventDate: initialValues?.eventDate || '',
-      guestCount: initialValues?.guestCount || '',
+      eventStartDate: defaultStartDate,
+      eventEndDate: defaultEndDate,
       venueName: initialValues?.venueName || '',
       referenceName: initialValues?.referenceName || '',
       referenceNumber: initialValues?.referenceNumber || '',
       remarks: initialValues?.remarks || '',
+      eventSchedule: initialSchedule,
     },
   });
 
-  const handleFormSubmit = (data) => {
-    if (selectedTimeOption === 'Custom' && !customTimeText.trim()) {
-      setTimeError('Custom event time is required.');
-      return;
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'eventSchedule',
+  });
+
+  const watchStartDate = watch('eventStartDate');
+  const watchEndDate = watch('eventEndDate');
+  const watchSchedule = watch('eventSchedule') || [];
+
+  // When start date changes and end date is empty or was previously synced, update end date
+  const handleStartDateChange = (e) => {
+    const val = e.target.value;
+    setValue('eventStartDate', val, { shouldValidate: true });
+    if (!watchEndDate || watchEndDate < val) {
+      setValue('eventEndDate', val, { shouldValidate: true });
     }
+  };
 
-    const finalEventStart = selectedTimeOption === 'Custom'
-      ? customTimeText.trim()
-      : selectedTimeOption;
+  // Compute live total pax across all sessions
+  const totalPax = watchSchedule.reduce((sum, row) => {
+    const count = Number(row?.guestCount) || 0;
+    return sum + (count > 0 ? count : 0);
+  }, 0);
 
-    onSubmit({
-      ...data,
-      eventStart: finalEventStart,
+  const handleAddRow = () => {
+    const lastRow = watchSchedule[watchSchedule.length - 1];
+    const defaultDate = lastRow?.date || watchStartDate || todayStr();
+    append({
+      date: defaultDate,
+      timeLabel: '',
+      guestCount: 100,
+      sortOrder: watchSchedule.length,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* 1. Meta Block */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Input
@@ -130,12 +153,13 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
         </div>
       </div>
 
-      {/* 3. Event Parameters Section */}
-      <div className="space-y-3">
+      {/* 3. Event Parameters & Schedule Section */}
+      <div className="space-y-4">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-pms-primary border-b border-slate-100 pb-1.5">
           <Calendar className="w-4 h-4 text-pms-accent" />
-          <span>Event Parameters</span>
+          <span>Event Dates & Master Details</span>
         </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Select
             label="Function Type"
@@ -146,59 +170,162 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
           />
 
           <Input
-            label="Event Date"
+            label="Event Start Date"
             type="date"
             required
-            {...register('eventDate')}
-            error={errors.eventDate?.message}
+            value={watchStartDate}
+            onChange={handleStartDateChange}
+            error={errors.eventStartDate?.message}
           />
 
-          <Select
-            label="Event Time"
+          <Input
+            label="Event End Date"
+            type="date"
             required
-            value={selectedTimeOption}
-            onChange={(e) => {
-              setSelectedTimeOption(e.target.value);
-              setTimeError('');
-            }}
-            options={eventTimeOptions}
-            error={timeError}
+            min={watchStartDate}
+            {...register('eventEndDate')}
+            error={errors.eventEndDate?.message}
           />
 
-          {selectedTimeOption === 'Custom' && (
+          <div className="sm:col-span-2 lg:col-span-3">
             <Input
-              label="Custom Event Time"
+              label="Venue Name"
               required
-              placeholder="e.g. 07:30 PM - 10:00 PM"
-              value={customTimeText}
-              onChange={(e) => {
-                setCustomTimeText(e.target.value);
-                setTimeError('');
-              }}
-              error={timeError}
+              placeholder="e.g. Hotel Grand Regency / Royal Palms Banquet"
+              {...register('venueName')}
+              error={errors.venueName?.message}
             />
+          </div>
+        </div>
+
+        {/* 4. Interactive Schedule Builder */}
+        <div className="space-y-2 pt-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Event Schedule & Sessions
+              </span>
+              <span className="text-[11px] text-slate-400">
+                (Specify meal sessions & pax for each day)
+              </span>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleAddRow}
+              className="gap-1 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Session</span>
+            </Button>
+          </div>
+
+          {errors.eventSchedule?.root?.message && (
+            <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-600 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <span>{errors.eventSchedule.root.message}</span>
+            </div>
           )}
 
-          <Input
-            label="Number of People"
-            type="number"
-            required
-            placeholder="500"
-            {...register('guestCount')}
-            error={errors.guestCount?.message}
-          />
+          <div className="border border-slate-200 rounded-xl bg-white shadow-xs">
+            <div className="overflow-x-visible">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500 rounded-t-xl">
+                    <th className="py-2.5 px-3 w-[160px] rounded-tl-xl">Session Date *</th>
+                    <th className="py-2.5 px-3 min-w-[220px]">Time / Session Label *</th>
+                    <th className="py-2.5 px-3 w-[120px]">Pax *</th>
+                    <th className="py-2.5 px-2 w-[50px] text-center rounded-tr-xl"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {fields.map((field, index) => {
+                    const rowError = errors.eventSchedule?.[index];
 
-          <Input
-            label="Venue Name"
-            required
-            placeholder="Hotel Grand Regency"
-            {...register('venueName')}
-            error={errors.venueName?.message}
-          />
+                    return (
+                      <tr key={field.id} className="hover:bg-slate-50/50">
+                        <td className="py-2 px-3 align-top">
+                          <input
+                            type="date"
+                            min={watchStartDate}
+                            max={watchEndDate}
+                            className={`w-full bg-white border rounded-lg text-xs px-2.5 py-1.5 focus:outline-none transition-colors ${
+                              rowError?.date
+                                ? 'border-red-400 focus:border-red-500'
+                                : 'border-slate-200 focus:border-pms-accent'
+                            }`}
+                            {...register(`eventSchedule.${index}.date`)}
+                          />
+                          {rowError?.date && (
+                            <span className="text-[10px] text-red-500 block mt-0.5">
+                              {rowError.date.message}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 align-top">
+                          <EventTimeCombobox
+                            value={watch(`eventSchedule.${index}.timeLabel`) || ''}
+                            onChange={(val) =>
+                              setValue(`eventSchedule.${index}.timeLabel`, val, { shouldValidate: true })
+                            }
+                            placeholder="e.g. Lunch / SANGEET Dinner"
+                            error={rowError?.timeLabel?.message}
+                            className="text-xs py-1.5 rounded-lg"
+                          />
+                        </td>
+                        <td className="py-2 px-3 align-top">
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder="Pax"
+                            className={`w-full bg-white border rounded-lg text-xs px-2.5 py-1.5 font-mono text-right focus:outline-none transition-colors ${
+                              rowError?.guestCount
+                                ? 'border-red-400 focus:border-red-500'
+                                : 'border-slate-200 focus:border-pms-accent'
+                            }`}
+                            {...register(`eventSchedule.${index}.guestCount`)}
+                          />
+                          {rowError?.guestCount && (
+                            <span className="text-[10px] text-red-500 block mt-0.5">
+                              {rowError.guestCount.message}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-2 text-center align-top">
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            disabled={fields.length === 1}
+                            title={fields.length === 1 ? 'Minimum 1 session required' : 'Remove session'}
+                            className="p-1.5 text-slate-400 hover:text-red-500 disabled:text-slate-200 disabled:cursor-not-allowed transition-colors rounded-lg hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t border-slate-200 font-bold text-xs text-slate-800">
+                    <td colSpan={2} className="py-2.5 px-3 text-right uppercase tracking-wider text-[11px] text-slate-500">
+                      Total Pax Across All Sessions:
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-sm text-pms-primary">
+                      {totalPax.toLocaleString()}
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* 4. Reference & Notes Section */}
+      {/* 5. Reference & Notes Section */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-pms-primary border-b border-slate-100 pb-1.5">
           <Share2 className="w-4 h-4 text-pms-accent" />

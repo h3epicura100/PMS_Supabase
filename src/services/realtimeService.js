@@ -10,6 +10,11 @@ export function subscribeToRealtimeChanges(onDataChange) {
     )
     .on(
       'postgres_changes',
+      { event: '*', schema: 'public', table: 'pms_event_schedule' },
+      () => onDataChange('pms_event_schedule')
+    )
+    .on(
+      'postgres_changes',
       { event: '*', schema: 'public', table: 'pms_menu_tasks' },
       () => onDataChange('pms_menu_tasks')
     )
@@ -22,6 +27,11 @@ export function subscribeToRealtimeChanges(onDataChange) {
       'postgres_changes',
       { event: '*', schema: 'public', table: 'pms_vegetable_entries' },
       () => onDataChange('pms_vegetable_entries')
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'pms_cheese_dairy_entries' },
+      () => onDataChange('pms_cheese_dairy_entries')
     )
     .on(
       'postgres_changes',
