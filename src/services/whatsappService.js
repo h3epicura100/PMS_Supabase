@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { storageService } from './storageService';
+import { authService } from '../features/auth/authService';
 import { formatDateRangeDisplay, formatDateDisplay, formatShortDateDisplay } from '../utils/dateUtils';
 
 const MAYTAPI_PRODUCT_ID = import.meta.env.VITE_MAYTAPI_PRODUCT_ID;
@@ -209,7 +210,7 @@ export const whatsappService = {
   },
 
   /**
-   * Dispatches menu finalized WhatsApp notifications to all registered department user numbers
+   * Dispatches menu finalized WhatsApp notifications to all registered department user numbers (Staff & Admin)
    * plus the default fallback number.
    * Attaches the file directly with the details message as a single WhatsApp message.
    */
@@ -224,23 +225,40 @@ export const whatsappService = {
       };
     }
 
-    // 1. Fetch all registered user phone numbers from database
+    // 1. Fetch all registered user phone numbers (Staff & Admin) from authService / database
     const recipientSet = new Set();
 
     try {
-      const { data: users, error } = await supabase
-        .from('pms_users')
-        .select('id, display_name, whatsapp_number')
-        .not('whatsapp_number', 'is', null);
-
-      if (!error && users && Array.isArray(users)) {
+      const users = await authService.loadUsers();
+      if (users && Array.isArray(users)) {
         users.forEach(u => {
-          const formatted = normalizePhoneNumber(u.whatsapp_number);
-          if (formatted) recipientSet.add(formatted);
+          const rawNum = u.whatsapp_number || u.whatsappNumber;
+          if (rawNum) {
+            const formatted = normalizePhoneNumber(rawNum);
+            if (formatted) {
+              recipientSet.add(formatted);
+              console.log(`[WhatsApp Service] Recipient added: ${formatted} (User: ${u.display_name || u.name || u.id}, Role: ${u.role || 'staff'})`);
+            }
+          }
         });
       }
     } catch (err) {
-      console.warn('[WhatsApp Service] Could not fetch pms_users for WhatsApp notifications:', err);
+      console.warn('[WhatsApp Service] Could not fetch users via authService:', err);
+      try {
+        const { data: dbUsers } = await supabase
+          .from('pms_users')
+          .select('id, display_name, role, whatsapp_number')
+          .not('whatsapp_number', 'is', null);
+
+        if (dbUsers && Array.isArray(dbUsers)) {
+          dbUsers.forEach(u => {
+            const formatted = normalizePhoneNumber(u.whatsapp_number);
+            if (formatted) recipientSet.add(formatted);
+          });
+        }
+      } catch (dbErr) {
+        console.warn('[WhatsApp Service] Database query fallback failed:', dbErr);
+      }
     }
 
     // 2. Always include the default configured number
@@ -259,6 +277,8 @@ export const whatsappService = {
         reason: 'No recipient WhatsApp numbers found',
       };
     }
+
+    console.log(`[WhatsApp Service] Dispatching to ${recipients.length} recipients:`, recipients);
 
     // 3. Resolve attachment public URL (Supabase storage buckets are public)
     let publicMediaUrl = null;
