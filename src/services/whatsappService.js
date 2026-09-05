@@ -198,6 +198,7 @@ export const whatsappService = {
     lines.push(``);
     lines.push(divider);
     lines.push(`📎 _Finalized menu attached above_`);
+    lines.push(`🌐 https://pms-supabase.vercel.app/`);
     lines.push(`_Order Rail PMS_`);
 
     return lines.join('\n');
