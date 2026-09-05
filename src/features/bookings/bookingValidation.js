@@ -15,7 +15,13 @@ export const scheduleItemSchema = z.object({
 
 export const bookingSchema = z.object({
   customerName: z.string().min(1, 'Customer name is required'),
-  customerMobile: z.string().min(10, 'Customer mobile must be at least 10 digits'),
+  customerMobile: z
+    .string()
+    .optional()
+    .refine(
+      (val) => !val || val.trim() === '' || val.replace(/\D/g, '').length >= 10,
+      { message: 'Customer mobile must be at least 10 digits' }
+    ),
   altNumber: z.string().optional(),
   functionType: z.string().min(1, 'Function type is required'),
   eventStartDate: z.string().min(1, 'Event start date is required'),

@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS pms_user_permissions (
 CREATE TABLE IF NOT EXISTS pms_customers (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL,
-  mobile      TEXT NOT NULL UNIQUE,
+  mobile      TEXT UNIQUE,
   alt_number  TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()

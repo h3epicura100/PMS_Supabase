@@ -9,7 +9,6 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
   if (!booking) return null;
 
   const customerName = booking.customer_name || booking.customerName || '—';
-  const customerMobile = booking.customer_mobile || booking.customerMobile || '';
   const startDate = booking.event_start_date || booking.eventStartDate || booking.event_date || booking.eventDate;
   const endDate = booking.event_end_date || booking.eventEndDate || booking.event_date || booking.eventDate;
   const dateRange = formatDateRangeDisplay(startDate, endDate);
@@ -27,9 +26,6 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
           <span className="font-semibold text-pms-text text-sm block">
             {customerName}
           </span>
-          {customerMobile && (
-            <span className="text-[11px] text-slate-500 font-mono block">{customerMobile}</span>
-          )}
         </div>
 
         <div>

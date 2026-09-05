@@ -168,7 +168,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
 
           <Input
             label="Customer Mobile"
-            required
+            optional
             placeholder="9876543210"
             {...register('customerMobile')}
             error={errors.customerMobile?.message}

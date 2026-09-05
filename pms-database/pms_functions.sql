@@ -46,14 +46,20 @@ DECLARE
   v_idx               INTEGER := 0;
   v_event_date        DATE;
 BEGIN
-  -- 1. Upsert Customer (3NF)
-  INSERT INTO pms_customers (name, mobile, alt_number)
-  VALUES (p_customer_name, p_customer_mobile, p_alt_number)
-  ON CONFLICT (mobile) DO UPDATE
-    SET name = EXCLUDED.name,
-        alt_number = COALESCE(EXCLUDED.alt_number, pms_customers.alt_number),
-        updated_at = NOW()
-  RETURNING id INTO v_customer_id;
+  -- 1. Upsert / Insert Customer (3NF)
+  IF p_customer_mobile IS NOT NULL AND TRIM(p_customer_mobile) <> '' THEN
+    INSERT INTO pms_customers (name, mobile, alt_number)
+    VALUES (p_customer_name, TRIM(p_customer_mobile), p_alt_number)
+    ON CONFLICT (mobile) DO UPDATE
+      SET name = EXCLUDED.name,
+          alt_number = COALESCE(EXCLUDED.alt_number, pms_customers.alt_number),
+          updated_at = NOW()
+    RETURNING id INTO v_customer_id;
+  ELSE
+    INSERT INTO pms_customers (name, mobile, alt_number)
+    VALUES (p_customer_name, NULL, p_alt_number)
+    RETURNING id INTO v_customer_id;
+  END IF;
 
   -- 2. Lookup/Insert Function Type (3NF)
   IF p_function_type IS NOT NULL AND TRIM(p_function_type) <> '' THEN

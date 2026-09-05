@@ -157,9 +157,9 @@ export const bookingService = {
     }));
 
     const { data, error } = await supabase.rpc('pms_create_booking', {
-      p_customer_name: bookingData.customerName,
-      p_customer_mobile: bookingData.customerMobile,
-      p_alt_number: bookingData.altNumber || null,
+      p_customer_name: bookingData.customerName?.trim(),
+      p_customer_mobile: bookingData.customerMobile?.trim() || null,
+      p_alt_number: bookingData.altNumber?.trim() || null,
       p_function_type: bookingData.functionType || null,
       p_event_start_date: bookingData.eventStartDate,
       p_event_end_date: bookingData.eventEndDate,
