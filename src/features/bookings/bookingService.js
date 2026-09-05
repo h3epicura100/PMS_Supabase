@@ -121,7 +121,7 @@ export const bookingService = {
         functionType: b.function_type,
         eventStartDate,
         eventEndDate,
-        eventDate: eventEndDate || eventStartDate,
+        eventDate: eventStartDate || eventEndDate,
         guestCount: totalGuestCount,
         totalGuestCount,
         eventSchedule,
@@ -188,7 +188,7 @@ export const bookingService = {
       .update({
         event_start_date: eventStartDate,
         event_end_date: eventEndDate,
-        event_date: eventEndDate || eventStartDate,
+        event_date: eventStartDate || eventEndDate,
         remarks: bookingData.remarks,
       })
       .eq('id', id);

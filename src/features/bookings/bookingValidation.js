@@ -31,4 +31,18 @@ export const bookingSchema = z.object({
     message: 'Event end date cannot be earlier than start date',
     path: ['eventEndDate'],
   }
+).refine(
+  (data) => {
+    if (!data.eventStartDate || !data.eventSchedule) return true;
+    return data.eventSchedule.every((s) => {
+      if (!s.date) return true;
+      if (s.date < data.eventStartDate) return false;
+      if (data.eventEndDate && s.date > data.eventEndDate) return false;
+      return true;
+    });
+  },
+  {
+    message: 'Session dates must be within the Event Start and End Date range',
+    path: ['eventSchedule'],
+  }
 );

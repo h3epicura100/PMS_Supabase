@@ -31,14 +31,14 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
   const initialSchedule = (initialValues?.eventSchedule && initialValues.eventSchedule.length > 0)
     ? initialValues.eventSchedule.map((s, idx) => ({
         id: s.id || String(idx),
-        date: s.date || defaultStartDate || todayStr(),
+        date: s.date || defaultStartDate || '',
         timeLabel: s.timeLabel || 'Lunch',
         guestCount: s.guestCount || 100,
         sortOrder: s.sortOrder ?? idx,
       }))
     : [
         {
-          date: defaultStartDate || todayStr(),
+          date: defaultStartDate || '',
           timeLabel: initialValues?.eventStart || 'Lunch',
           guestCount: initialValues?.guestCount || 100,
           sortOrder: 0,
@@ -78,13 +78,38 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
   const watchEndDate = watch('eventEndDate');
   const watchSchedule = watch('eventSchedule') || [];
 
-  // When start date changes and end date is empty or was previously synced, update end date
+  // When start date changes and end date is empty or was previously synced, update end date & sessions
   const handleStartDateChange = (e) => {
     const val = e.target.value;
+    const prevStart = watchStartDate;
     setValue('eventStartDate', val, { shouldValidate: true });
+    
+    let newEnd = watchEndDate;
     if (!watchEndDate || watchEndDate < val) {
+      newEnd = val;
       setValue('eventEndDate', val, { shouldValidate: true });
     }
+
+    // Auto-update schedule session dates if empty, equal to old start date, or out of range
+    const currentSchedule = watchSchedule || [];
+    currentSchedule.forEach((row, idx) => {
+      if (!row.date || row.date === prevStart || row.date < val || (newEnd && row.date > newEnd)) {
+        setValue(`eventSchedule.${idx}.date`, val, { shouldValidate: true });
+      }
+    });
+  };
+
+  // When end date changes, ensure session dates do not exceed new end date
+  const handleEndDateChange = (e) => {
+    const val = e.target.value;
+    setValue('eventEndDate', val, { shouldValidate: true });
+
+    const currentSchedule = watchSchedule || [];
+    currentSchedule.forEach((row, idx) => {
+      if (row.date && val && row.date > val) {
+        setValue(`eventSchedule.${idx}.date`, val, { shouldValidate: true });
+      }
+    });
   };
 
   // Compute live total pax across all sessions
@@ -95,7 +120,12 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
 
   const handleAddRow = () => {
     const lastRow = watchSchedule[watchSchedule.length - 1];
-    const defaultDate = lastRow?.date || watchStartDate || todayStr();
+    let defaultDate = watchStartDate || '';
+    if (lastRow?.date) {
+      if ((!watchStartDate || lastRow.date >= watchStartDate) && (!watchEndDate || lastRow.date <= watchEndDate)) {
+        defaultDate = lastRow.date;
+      }
+    }
     append({
       date: defaultDate,
       timeLabel: '',
@@ -183,7 +213,8 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
             type="date"
             required
             min={watchStartDate}
-            {...register('eventEndDate')}
+            value={watchEndDate}
+            onChange={handleEndDateChange}
             error={errors.eventEndDate?.message}
           />
 
@@ -252,12 +283,15 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                             type="date"
                             min={watchStartDate}
                             max={watchEndDate}
+                            value={watch(`eventSchedule.${index}.date`) || ''}
+                            onChange={(e) =>
+                              setValue(`eventSchedule.${index}.date`, e.target.value, { shouldValidate: true })
+                            }
                             className={`w-full bg-white border rounded-lg text-xs px-2.5 py-1.5 focus:outline-none transition-colors ${
                               rowError?.date
                                 ? 'border-red-400 focus:border-red-500'
                                 : 'border-slate-200 focus:border-pms-accent'
                             }`}
-                            {...register(`eventSchedule.${index}.date`)}
                           />
                           {rowError?.date && (
                             <span className="text-[10px] text-red-500 block mt-0.5">
@@ -281,12 +315,19 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                             type="number"
                             min="1"
                             placeholder="Guests"
+                            value={watch(`eventSchedule.${index}.guestCount`) ?? ''}
+                            onChange={(e) =>
+                              setValue(
+                                `eventSchedule.${index}.guestCount`,
+                                e.target.value === '' ? '' : Number(e.target.value),
+                                { shouldValidate: true }
+                              )
+                            }
                             className={`w-full bg-white border rounded-lg text-xs px-2.5 py-1.5 font-mono text-right focus:outline-none transition-colors ${
                               rowError?.guestCount
                                 ? 'border-red-400 focus:border-red-500'
                                 : 'border-slate-200 focus:border-pms-accent'
                             }`}
-                            {...register(`eventSchedule.${index}.guestCount`)}
                           />
                           {rowError?.guestCount && (
                             <span className="text-[10px] text-red-500 block mt-0.5">
@@ -362,10 +403,13 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                         type="date"
                         min={watchStartDate}
                         max={watchEndDate}
+                        value={watch(`eventSchedule.${index}.date`) || ''}
+                        onChange={(e) =>
+                          setValue(`eventSchedule.${index}.date`, e.target.value, { shouldValidate: true })
+                        }
                         className={`w-full bg-white border rounded-lg text-xs px-2 py-1.5 focus:outline-none transition-colors ${
                           rowError?.date ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-pms-accent'
                         }`}
-                        {...register(`eventSchedule.${index}.date`)}
                       />
                       {rowError?.date && (
                         <span className="text-[10px] text-red-500 block mt-0.5">{rowError.date.message}</span>
@@ -380,10 +424,17 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
                         type="number"
                         min="1"
                         placeholder="Guests"
+                        value={watch(`eventSchedule.${index}.guestCount`) ?? ''}
+                        onChange={(e) =>
+                          setValue(
+                            `eventSchedule.${index}.guestCount`,
+                            e.target.value === '' ? '' : Number(e.target.value),
+                            { shouldValidate: true }
+                          )
+                        }
                         className={`w-full bg-white border rounded-lg text-xs px-2 py-1.5 font-mono text-right focus:outline-none transition-colors ${
                           rowError?.guestCount ? 'border-red-400 focus:border-red-500' : 'border-slate-200 focus:border-pms-accent'
                         }`}
-                        {...register(`eventSchedule.${index}.guestCount`)}
                       />
                       {rowError?.guestCount && (
                         <span className="text-[10px] text-red-500 block mt-0.5">{rowError.guestCount.message}</span>

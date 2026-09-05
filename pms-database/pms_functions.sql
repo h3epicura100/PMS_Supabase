@@ -80,7 +80,7 @@ BEGIN
 
   -- 5. Generate formatted Booking ID
   v_booking_id := pms_next_booking_id();
-  v_event_date := COALESCE(p_event_end_date, p_event_start_date);
+  v_event_date := COALESCE(p_event_start_date, p_event_end_date);
 
   -- 6. Insert Booking Record referencing foreign keys
   INSERT INTO pms_bookings (

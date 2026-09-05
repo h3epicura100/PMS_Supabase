@@ -20,7 +20,7 @@ export const dashboardService = {
     // Flatten department rows across active bookings
     const activeDeptRows = [];
     activeBookings.forEach(b => {
-      const anchorDate = b.eventEndDate || b.eventDate;
+      const anchorDate = b.eventStartDate || b.eventDate;
       DEPT_LIST.forEach(cfg => {
         const deptData = b.departments?.[cfg.key] || {};
         const plannedDate = derivedPlannedDate(anchorDate);
@@ -66,7 +66,7 @@ export const dashboardService = {
     const allDeptRows = [];
     bookings.forEach(b => {
       const isClosed = b.status === 'closed' || b.closed;
-      const anchorDate = b.eventEndDate || b.eventDate;
+      const anchorDate = b.eventStartDate || b.eventDate;
       DEPT_LIST.forEach(cfg => {
         const deptData = b.departments?.[cfg.key] || {};
         const effectiveStatus = isClosed ? 'Complete' : (deptData.status || 'Pending');

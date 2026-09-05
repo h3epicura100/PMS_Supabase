@@ -119,7 +119,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
             {bookings.map((b) => {
               const deptData = b.departments?.[deptKey] || {};
               const effectiveStatus = deptData.status || (b.status === 'closed' || b.closed ? 'Complete' : 'Pending');
-              const anchorDate = b.eventEndDate || b.eventDate;
+              const anchorDate = b.eventStartDate || b.eventDate;
               const plannedDate = derivedPlannedDate(anchorDate);
               const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
               const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
