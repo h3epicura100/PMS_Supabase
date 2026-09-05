@@ -140,7 +140,6 @@ export const whatsappService = {
   buildMenuFinalizedMessage(booking, remarks, schedule = []) {
     const bookingId = booking?.id || '—';
     const customer = booking?.customerName || booking?.customer?.name || booking?.customer_name || '—';
-    const customerMobile = booking?.customerMobile || booking?.customer?.mobile || booking?.customer_mobile || '';
     const functionType = booking?.functionType || booking?.function_type || '—';
     const venue = booking?.venueName || booking?.venue?.name || booking?.venue_name || '—';
     
@@ -160,16 +159,11 @@ export const whatsappService = {
       divider,
       `📋 *Booking ID:* ${bookingId}`,
       `👤 *Customer:* ${customer}`,
+      `🎊 *Function:* ${functionType}`,
+      `📍 *Venue:* ${venue}`,
+      `📅 *Date:* ${dateRange}`,
+      `👥 *Total Guests:* ${pax} Pax`,
     ];
-
-    if (customerMobile) {
-      lines.push(`📞 *Contact:* ${customerMobile}`);
-    }
-
-    lines.push(`🎊 *Function:* ${functionType}`);
-    lines.push(`📍 *Venue:* ${venue}`);
-    lines.push(`📅 *Date:* ${dateRange}`);
-    lines.push(`👥 *Total Guests:* ${pax} Pax`);
 
     if (refName) {
       lines.push(`🤝 *Reference:* ${refName}${refNum ? ` (${refNum})` : ''}`);
