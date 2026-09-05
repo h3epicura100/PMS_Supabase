@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../../components/common/Button';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, MessageSquare } from 'lucide-react';
 import { NAVIGATION } from '../../constants/permissions';
 
 export function UsersTable({ users = [], onEdit, onDelete }) {
@@ -19,6 +19,7 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
             <tr className="bg-slate-50 border-b border-pms-border text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               <th className="py-3 px-4">User ID</th>
               <th className="py-3 px-4">Name</th>
+              <th className="py-3 px-4">WhatsApp</th>
               <th className="py-3 px-4">Role</th>
               <th className="py-3 px-4">Page Access</th>
               <th className="py-3 px-4 text-right">Actions</th>
@@ -27,6 +28,7 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
           <tbody className="divide-y divide-pms-border">
             {users.map((u) => {
               const isFull = u.role === 'admin' || u.has_full_access || u.allowedPages?.includes('ALL');
+              const phone = u.whatsapp_number || u.whatsappNumber;
 
               return (
                 <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
@@ -35,6 +37,16 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
                   </td>
                   <td className="py-3 px-4 font-semibold text-pms-text">
                     {u.display_name || u.name || '—'}
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    {phone ? (
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                        <MessageSquare className="w-3 h-3 text-emerald-600" />
+                        {phone}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="py-3 px-4 font-medium text-pms-text capitalize">
                     {u.role}

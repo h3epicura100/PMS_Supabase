@@ -18,6 +18,7 @@ export const settingsService = {
       password: userData.password_hash || userData.password || 'admin123',
       display_name: userData.display_name || userData.name || userData.id,
       name: userData.display_name || userData.name || userData.id,
+      whatsapp_number: userData.whatsapp_number || userData.whatsappNumber || null,
       role: userData.role,
       has_full_access: isFull,
       allowedPages: pageList,
@@ -41,6 +42,7 @@ export const settingsService = {
         id: formattedUser.id,
         password_hash: formattedUser.password_hash,
         display_name: formattedUser.display_name,
+        whatsapp_number: formattedUser.whatsapp_number,
         role: formattedUser.role,
         has_full_access: formattedUser.has_full_access,
       });

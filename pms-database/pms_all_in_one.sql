@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS pms_users (
   id              TEXT PRIMARY KEY,                     -- login ID e.g. "admin"
   password_hash   TEXT NOT NULL,                        -- password string
   display_name    TEXT NOT NULL,
+  whatsapp_number TEXT,                                 -- WhatsApp mobile e.g. "917000206500"
   role            TEXT NOT NULL DEFAULT 'staff'
     CHECK (role IN ('admin','staff')),
   has_full_access BOOLEAN NOT NULL DEFAULT FALSE,     -- TRUE = unrestricted access
@@ -18,6 +19,9 @@ CREATE TABLE IF NOT EXISTS pms_users (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration support if pms_users already exists
+ALTER TABLE pms_users ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 
 -- 2. PERMISSIONS LOOKUP TABLE
 CREATE TABLE IF NOT EXISTS pms_permissions (
@@ -139,9 +143,15 @@ CREATE TABLE IF NOT EXISTS pms_menu_tasks (
   attachment_path   TEXT,
   attachment_name   TEXT,
   finalization_date DATE,
+  whatsapp_status   TEXT CHECK (whatsapp_status IN ('Sent', 'Failed', 'Partial', 'Skipped')),
+  whatsapp_sent_at  TIMESTAMPTZ,
   updated_by        TEXT,
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Migration support if pms_menu_tasks already exists
+ALTER TABLE pms_menu_tasks ADD COLUMN IF NOT EXISTS whatsapp_status TEXT CHECK (whatsapp_status IN ('Sent', 'Failed', 'Partial', 'Skipped'));
+ALTER TABLE pms_menu_tasks ADD COLUMN IF NOT EXISTS whatsapp_sent_at TIMESTAMPTZ;
 
 -- 13. DEPARTMENT TASKS TABLE (3NF Weak Entity referenced to pms_departments)
 CREATE TABLE IF NOT EXISTS pms_department_tasks (

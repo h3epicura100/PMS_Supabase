@@ -58,6 +58,26 @@ export const storageService = {
   },
 
   /**
+   * Generates a public URL or returns direct path/dataUrl.
+   */
+  getPublicUrl(filePath) {
+    if (!filePath) return null;
+    if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) return filePath;
+
+    try {
+      const { data } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(filePath);
+
+      if (data?.publicUrl) return data.publicUrl;
+    } catch (e) {
+      console.warn('Error getting public URL:', e);
+    }
+
+    return filePath;
+  },
+
+  /**
    * Removes an attachment from Supabase Storage.
    */
   async deleteAttachment(filePath) {

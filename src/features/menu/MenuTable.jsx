@@ -1,9 +1,9 @@
 import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { Button } from '../../components/common/Button';
-import { formatDateRangeDisplay } from '../../utils/dateUtils';
+import { formatDateRangeDisplay, formatDateTimeDisplay, formatDateDisplay } from '../../utils/dateUtils';
 import { storageService } from '../../services/storageService';
-import { Paperclip, Calendar } from 'lucide-react';
+import { Paperclip, Calendar, CheckCircle2, AlertTriangle, XCircle, MinusCircle, MessageCircle } from 'lucide-react';
 
 function AttachmentCell({ attachment }) {
   if (!attachment || (!attachment.name && !attachment.path)) {
@@ -34,6 +34,54 @@ function AttachmentCell({ attachment }) {
   );
 }
 
+function WhatsAppStatusCell({ isFinalized, status, sentAt }) {
+  if (!isFinalized || !status) {
+    return <span className="text-slate-400">—</span>;
+  }
+
+  let config = {
+    bg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+    icon: CheckCircle2,
+    label: 'Sent',
+  };
+
+  if (status === 'Partial') {
+    config = {
+      bg: 'bg-amber-50 border-amber-200 text-amber-700',
+      icon: AlertTriangle,
+      label: 'Partial',
+    };
+  } else if (status === 'Failed') {
+    config = {
+      bg: 'bg-red-50 border-red-200 text-red-700',
+      icon: XCircle,
+      label: 'Failed',
+    };
+  } else if (status === 'Skipped') {
+    config = {
+      bg: 'bg-slate-50 border-slate-200 text-slate-600',
+      icon: MinusCircle,
+      label: 'Skipped',
+    };
+  }
+
+  const IconComp = config.icon;
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-semibold w-fit ${config.bg}`}>
+        <IconComp className="w-3 h-3" />
+        <span>{config.label}</span>
+      </span>
+      {sentAt && (
+        <span className="text-[10px] text-slate-400">
+          {formatDateTimeDisplay(sentAt)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function MenuTable({ bookings = [], onUpdateMenu }) {
   if (!bookings.length) {
     return (
@@ -52,6 +100,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
             <tr className="bg-slate-50 border-b border-pms-border text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               <th className="py-3 px-4">Action</th>
               <th className="py-3 px-4">Booking ID</th>
+              <th className="py-3 px-4">Booking Date</th>
               <th className="py-3 px-4">Customer</th>
               <th className="py-3 px-4">Event Date</th>
               <th className="py-3 px-4">Venue</th>
@@ -59,12 +108,13 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
               <th className="py-3 px-4">Menu Status</th>
               <th className="py-3 px-4">Remarks</th>
               <th className="py-3 px-4">Attachment</th>
+              <th className="py-3 px-4">WhatsApp</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-pms-border">
             {bookings.map((b) => {
-              const displayRemarks = b.menu?.remarks || b.menu?.reason || '—';
               const menuStatus = b.menu?.status || (b.status === 'closed' || b.closed ? 'Finalized' : 'Pending');
+              const isFinalized = menuStatus === 'Finalized';
               const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
               const sessionCount = b.eventSchedule?.length || 0;
               const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
@@ -83,8 +133,14 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                   <td className="py-3 px-4 font-mono font-semibold text-pms-primary">
                     {b.id}
                   </td>
-                  <td className="py-3 px-4 font-semibold text-pms-text">
-                    {b.customerName}
+                  <td className="py-3 px-4 text-slate-700 font-medium whitespace-nowrap">
+                    {formatDateDisplay(b.bookingDate || b.createdAt)}
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="font-semibold text-pms-text">{b.customerName}</div>
+                    {b.customerMobile && b.customerMobile !== '—' && (
+                      <div className="text-[11px] text-pms-muted font-mono">{b.customerMobile}</div>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
                     <div>{dateRange}</div>
@@ -104,11 +160,39 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                   <td className="py-3 px-4">
                     <StatusBadge status={menuStatus} />
                   </td>
-                  <td className="py-3 px-4 max-w-[200px] truncate text-slate-700 font-normal">
-                    {displayRemarks}
+                  <td className="py-3 px-4 max-w-[200px]">
+                    {b.menu?.remarks ? (
+                      <div>
+                        <div className="truncate text-slate-800 font-normal" title={b.menu.remarks}>
+                          {b.menu.remarks}
+                        </div>
+                        {b.remarks && b.remarks !== b.menu.remarks && (
+                          <div className="text-[10px] text-slate-400 truncate" title={`Booking note: ${b.remarks}`}>
+                            Booking: {b.remarks}
+                          </div>
+                        )}
+                      </div>
+                    ) : b.menu?.reason ? (
+                      <div className="truncate text-amber-700 font-normal" title={b.menu.reason}>
+                        {b.menu.reason}
+                      </div>
+                    ) : b.remarks ? (
+                      <div className="truncate text-slate-600 font-normal" title={b.remarks}>
+                        {b.remarks}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
                     <AttachmentCell attachment={b.menu?.attachment} />
+                  </td>
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <WhatsAppStatusCell
+                      isFinalized={isFinalized}
+                      status={b.menu?.whatsappStatus}
+                      sentAt={b.menu?.whatsappSentAt}
+                    />
                   </td>
                 </tr>
               );
@@ -119,3 +203,4 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
     </div>
   );
 }
+

@@ -114,6 +114,7 @@ export const bookingService = {
 
       return ensureBookingShape({
         id: b.id,
+        bookingDate: b.booking_date || (b.created_at ? b.created_at.slice(0, 10) : null),
         createdAt: b.created_at ? b.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
         customerName: b.customer_name || '—',
         customerMobile: b.customer_mobile || '—',
@@ -136,6 +137,8 @@ export const bookingService = {
           remarks: menuTask ? menuTask.remarks : '',
           attachment: menuTask && menuTask.attachment_path ? { name: menuTask.attachment_name, path: menuTask.attachment_path } : null,
           finalizationDate: menuTask ? menuTask.finalization_date : '',
+          whatsappStatus: menuTask ? menuTask.whatsapp_status : null,
+          whatsappSentAt: menuTask ? menuTask.whatsapp_sent_at : null,
         },
         departments: depts,
       });

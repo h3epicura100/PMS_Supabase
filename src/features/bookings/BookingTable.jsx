@@ -1,7 +1,7 @@
 import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { Button } from '../../components/common/Button';
-import { formatDateRangeDisplay } from '../../utils/dateUtils';
+import { formatDateRangeDisplay, formatDateDisplay } from '../../utils/dateUtils';
 import { Edit2, RotateCcw, Calendar, Users } from 'lucide-react';
 
 export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onReopen }) {
@@ -23,11 +23,13 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
           <thead>
             <tr className="bg-slate-50 border-b border-pms-border text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               <th className="py-3 px-4">Booking ID</th>
+              <th className="py-3 px-4">Booking Date</th>
               <th className="py-3 px-4">Customer</th>
               <th className="py-3 px-4">Event</th>
               <th className="py-3 px-4">Event Date</th>
               <th className="py-3 px-4">Guests</th>
               <th className="py-3 px-4">Reference</th>
+              <th className="py-3 px-4">Remarks</th>
               <th className="py-3 px-4">Menu Status</th>
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
@@ -43,6 +45,9 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                 <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-3 px-4 font-mono font-semibold text-pms-primary">
                     {b.id}
+                  </td>
+                  <td className="py-3 px-4 text-slate-700 font-medium whitespace-nowrap">
+                    {formatDateDisplay(b.bookingDate || b.createdAt)}
                   </td>
                   <td className="py-3 px-4">
                     <div className="font-semibold text-pms-text">{b.customerName}</div>
@@ -73,6 +78,13 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                     <div>{b.referenceName || '—'}</div>
                     {b.referenceNumber && (
                       <div className="text-[10px] font-mono">{b.referenceNumber}</div>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 max-w-[180px] text-slate-700 font-normal">
+                    {b.remarks ? (
+                      <span className="truncate block" title={b.remarks}>{b.remarks}</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
                     )}
                   </td>
                   <td className="py-3 px-4">

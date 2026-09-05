@@ -11,6 +11,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [role, setRole] = useState('staff');
   const [fullAccess, setFullAccess] = useState(false);
   const [allowedPages, setAllowedPages] = useState(['dashboard']);
@@ -22,6 +23,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
       setId(initialValues.id || '');
       setPassword(initialValues.password_hash || initialValues.password || '');
       setName(initialValues.display_name || initialValues.name || '');
+      setWhatsappNumber(initialValues.whatsapp_number || initialValues.whatsappNumber || '');
       setRole(initialValues.role || 'staff');
       const isFull = Boolean(initialValues.has_full_access || initialValues.allowedPages?.includes('ALL') || initialValues.role === 'admin');
       setFullAccess(isFull);
@@ -31,6 +33,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
       setId('');
       setPassword('');
       setName('');
+      setWhatsappNumber('');
       setRole('staff');
       setFullAccess(false);
       setAllowedPages(['dashboard']);
@@ -74,6 +77,8 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
         password,
         display_name: name,
         name,
+        whatsapp_number: whatsappNumber.trim() || null,
+        whatsappNumber: whatsappNumber.trim() || null,
         role,
         has_full_access: fullAccess || role === 'admin',
         allowedPages: finalAllowed,
@@ -123,15 +128,27 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
             placeholder="Chef John"
           />
 
-          <Select
-            label="Role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            options={[
-              { label: 'Staff', value: 'staff' },
-              { label: 'Admin', value: 'admin' },
-            ]}
+          <Input
+            label="WhatsApp Number"
+            optional
+            type="tel"
+            value={whatsappNumber}
+            onChange={(e) => setWhatsappNumber(e.target.value)}
+            placeholder="e.g. 917000206500"
+            helper="For menu finalization notifications (with country code)"
           />
+
+          <div className="sm:col-span-2">
+            <Select
+              label="Role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              options={[
+                { label: 'Staff', value: 'staff' },
+                { label: 'Admin', value: 'admin' },
+              ]}
+            />
+          </div>
         </div>
 
         <PermissionSelector

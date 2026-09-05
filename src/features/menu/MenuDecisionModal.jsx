@@ -61,6 +61,7 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
         remarks,
         attachmentFile: file,
         existingAttachment: booking.menu?.attachment,
+        bookingData: booking,
       },
     });
 
