@@ -273,7 +273,10 @@ INSERT INTO pms_permissions (key, label) VALUES
   ('decor',              'Decor List'),
   ('crockery',           'Crockery List'),
   ('kitchenRawMaterial', 'Kitchen & Raw Material'),
-  ('vegetables',         'Vegetables')
+  ('vegetables',         'Vegetables'),
+  ('cheeseDairy',        'Cheese & Dairy Products'),
+  ('masters',            'Master Data'),
+  ('settings',           'Settings')
 ON CONFLICT (key) DO UPDATE SET label = EXCLUDED.label;
 
 -- 18. SEED DATA: FUNCTION TYPES

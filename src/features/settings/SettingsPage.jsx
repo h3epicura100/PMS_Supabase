@@ -38,10 +38,15 @@ export function SettingsPage() {
   };
 
   const handleSave = async (userData, isEditing) => {
-    const updatedList = await settingsService.saveUser(userData, isEditing);
-    setUsers(updatedList);
-    setGlobalUsers(updatedList);
-    toast.success(`User ${userData.id} saved successfully!`);
+    try {
+      const updatedList = await settingsService.saveUser(userData, isEditing);
+      setUsers(updatedList);
+      setGlobalUsers(updatedList);
+      toast.success(`User ${userData.id} saved successfully!`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to save user.');
+      throw err;
+    }
   };
 
   const handleDelete = async (id) => {
