@@ -35,11 +35,14 @@ export const Select = forwardRef(({
         } ${className}`}
         {...props}
       >
-        {children || options.map((opt) => (
-          typeof opt === 'string'
-            ? <option key={opt} value={opt}>{opt}</option>
-            : <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
+        {children || options.map((opt, idx) => {
+          if (typeof opt === 'string') {
+            return <option key={`${opt}-${idx}`} value={opt}>{opt}</option>;
+          }
+          const val = opt?.value ?? opt?.id ?? opt?.name ?? '';
+          const lbl = opt?.label ?? opt?.name ?? opt?.value ?? String(val);
+          return <option key={`${val}-${idx}`} value={val}>{lbl}</option>;
+        })}
       </select>
 
       {hint && !error && <span className="text-[11px] text-slate-400">{hint}</span>}

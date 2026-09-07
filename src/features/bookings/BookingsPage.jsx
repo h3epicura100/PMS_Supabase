@@ -40,10 +40,10 @@ export function BookingsPage() {
     <div className="space-y-6">
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-pms-border pb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full">
           <button
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shrink-0 ${
               activeTab === 'pending'
                 ? 'bg-pms-primary text-white shadow-sm'
                 : 'text-pms-muted hover:bg-slate-100 hover:text-pms-text'
@@ -57,7 +57,7 @@ export function BookingsPage() {
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 shrink-0 ${
               activeTab === 'history'
                 ? 'bg-pms-primary text-white shadow-sm'
                 : 'text-pms-muted hover:bg-slate-100 hover:text-pms-text'

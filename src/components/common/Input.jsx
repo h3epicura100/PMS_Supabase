@@ -1,7 +1,9 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export const Input = forwardRef(({
   label,
+  type = 'text',
   error,
   required,
   optional,
@@ -11,6 +13,10 @@ export const Input = forwardRef(({
   icon: IconComponent,
   ...props
 }, ref) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const isPassword = type === 'password';
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+
   return (
     <div className="flex flex-col gap-1.5 w-full">
       {label && (
@@ -34,9 +40,12 @@ export const Input = forwardRef(({
         )}
         <input
           ref={ref}
+          type={inputType}
           className={`w-full bg-white border rounded-xl text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-150 shadow-sm focus:outline-none disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed ${
-            IconComponent ? 'pl-9 pr-3 py-2.5' : 'px-3.5 py-2.5'
+            IconComponent ? 'pl-9' : 'pl-3.5'
           } ${
+            isPassword ? 'pr-10' : 'pr-3.5'
+          } py-2.5 ${
             mono ? 'font-mono' : ''
           } ${
             error
@@ -45,6 +54,23 @@ export const Input = forwardRef(({
           } ${className}`}
           {...props}
         />
+
+        {isPassword && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setShowPassword(prev => !prev)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute right-3 p-1 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors rounded cursor-pointer"
+          >
+            {showPassword ? (
+              <EyeOff className="w-4 h-4 text-slate-600" />
+            ) : (
+              <Eye className="w-4 h-4 text-slate-400" />
+            )}
+          </button>
+        )}
       </div>
 
       {hint && !error && <span className="text-[11px] text-slate-400">{hint}</span>}
@@ -59,3 +85,4 @@ export const Input = forwardRef(({
 });
 
 Input.displayName = 'Input';
+

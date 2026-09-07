@@ -31,19 +31,26 @@ export function EventTimeCombobox({
   const inputRef = useRef(null);
 
   const { data: dbOptions } = useQuery({
-    queryKey: ['master_event_times'],
+    queryKey: ['master_event_times_combobox'],
     queryFn: async () => {
       const res = await masterService.getEventTimes();
-      return res.map(x => x.name).filter(name => name !== 'Custom');
+      return (Array.isArray(res) ? res : [])
+        .map(x => (typeof x === 'string' ? x : x?.name || ''))
+        .filter(name => name && name !== 'Custom');
     },
     enabled: !propOptions,
   });
 
-  const timeOptions = propOptions || dbOptions || DEFAULT_EVENT_TIME_OPTIONS;
+  const rawOptions = propOptions || dbOptions || DEFAULT_EVENT_TIME_OPTIONS;
+  const timeOptions = (Array.isArray(rawOptions) ? rawOptions : [])
+    .map(opt => (typeof opt === 'string' ? opt : opt?.name || opt?.label || ''))
+    .filter(Boolean);
+
+  const safeValue = typeof value === 'string' ? value : String(value || '');
 
   // Filter options based on typed value
-  const filteredOptions = value
-    ? timeOptions.filter(opt => opt.toLowerCase().includes(value.toLowerCase()))
+  const filteredOptions = safeValue
+    ? timeOptions.filter(opt => typeof opt === 'string' && opt.toLowerCase().includes(safeValue.toLowerCase()))
     : timeOptions;
 
   // Handle outside click to close dropdown
@@ -81,7 +88,7 @@ export function EventTimeCombobox({
         <input
           ref={inputRef}
           type="text"
-          value={value}
+          value={safeValue}
           onChange={(e) => {
             onChange(e.target.value);
             if (!isOpen) setIsOpen(true);
@@ -116,11 +123,11 @@ export function EventTimeCombobox({
       {isOpen && !disabled && (
         <div className="absolute top-full left-0 mt-1 w-full min-w-[200px] bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 max-h-56 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
           {filteredOptions.length > 0 ? (
-            filteredOptions.map((opt) => {
-              const isSelected = value.trim().toLowerCase() === opt.toLowerCase();
+            filteredOptions.map((opt, optIdx) => {
+              const isSelected = safeValue.trim().toLowerCase() === opt.toLowerCase();
               return (
                 <button
-                  key={opt}
+                  key={`${opt}-${optIdx}`}
                   type="button"
                   onMouseDown={(e) => {
                     e.preventDefault(); // Prevent input blur
@@ -140,12 +147,12 @@ export function EventTimeCombobox({
           ) : (
             <div className="px-3.5 py-2.5 text-xs text-slate-500">
               <span>Using custom: </span>
-              <span className="font-semibold text-slate-800">"{value}"</span>
+              <span className="font-semibold text-slate-800">"{safeValue}"</span>
             </div>
           )}
 
           {/* Quick Preset Hint Footer if user typed something custom */}
-          {value && !timeOptions.some(opt => opt.toLowerCase() === value.toLowerCase()) && filteredOptions.length > 0 && (
+          {safeValue && !timeOptions.some(opt => opt.toLowerCase() === safeValue.toLowerCase()) && filteredOptions.length > 0 && (
             <div className="border-t border-slate-100 mt-1 pt-1 px-3 py-1 text-[10px] text-slate-400 italic">
               Press Enter or click away to keep custom text
             </div>

@@ -178,7 +178,7 @@ export function MastersPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200">
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 overflow-x-auto no-scrollbar max-w-full pb-0.5">
         {tabs.map((t) => {
           const IconComp = t.icon;
           const isActive = activeTab === t.key;
@@ -189,15 +189,15 @@ export function MastersPage() {
                 setActiveTab(t.key);
                 setSearch('');
               }}
-              className={`flex items-center gap-2 py-2.5 px-4 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+              className={`flex items-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-3 sm:px-4 text-xs font-bold transition-all border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${
                 isActive
                   ? 'border-pms-accent text-pms-primary bg-blue-50/50 rounded-t-xl'
                   : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
-              <IconComp className="w-4 h-4" />
+              <IconComp className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span>{t.label}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
                 isActive ? 'bg-pms-primary text-white' : 'bg-slate-200 text-slate-600'
               }`}>
                 {t.count}
@@ -219,60 +219,102 @@ export function MastersPage() {
         </div>
       </div>
 
-      {/* Master Data Table */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                <th className="py-3.5 px-4 w-16">#</th>
-                <th className="py-3.5 px-4">Name / Title</th>
-                {activeTab === 'venues' && <th className="py-3.5 px-4">Address</th>}
-                <th className="py-3.5 px-4 text-right w-32">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredItems.map((item, idx) => (
-                <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-3.5 px-4 font-mono text-slate-400">{idx + 1}</td>
-                  <td className="py-3.5 px-4 font-semibold text-slate-900">{item.name}</td>
-                  {activeTab === 'venues' && (
-                    <td className="py-3.5 px-4 text-slate-500">{item.address || '—'}</td>
-                  )}
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openEditModal(item)}
-                        title="Edit Option"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-pms-accent" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => setDeleteTarget(item)}
-                        title="Delete Option"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {!filteredItems.length && (
-                <tr>
-                  <td colSpan={activeTab === 'venues' ? 4 : 3} className="py-12 text-center text-slate-400">
-                    No options found. Click "+ Add New Option" to add one.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* Master Data Mobile Cards & Desktop Table */}
+      {!filteredItems.length ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 text-xs">
+          No options found. Click "+ Add New Option" to add one.
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mobile Card Layout (Visible on screens < md) */}
+          <div className="space-y-3 md:hidden">
+            {filteredItems.map((item, idx) => (
+              <div
+                key={item.id || idx}
+                className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-start justify-between gap-3"
+              >
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                      #{idx + 1}
+                    </span>
+                    <span className="font-bold text-slate-900 text-sm truncate">{item.name}</span>
+                  </div>
+                  {activeTab === 'venues' && (
+                    <p className="text-xs text-slate-500 pl-7">{item.address || 'No address specified'}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => openEditModal(item)}
+                    title="Edit Option"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-pms-accent" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => setDeleteTarget(item)}
+                    title="Delete Option"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table (Visible on screens >= md) */}
+          <div className="hidden md:block bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="py-3.5 px-4 w-16">#</th>
+                    <th className="py-3.5 px-4">Name / Title</th>
+                    {activeTab === 'venues' && <th className="py-3.5 px-4">Address</th>}
+                    <th className="py-3.5 px-4 text-right w-32">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {filteredItems.map((item, idx) => (
+                    <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3.5 px-4 font-mono text-slate-400">{idx + 1}</td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-900">{item.name}</td>
+                      {activeTab === 'venues' && (
+                        <td className="py-3.5 px-4 text-slate-500">{item.address || '—'}</td>
+                      )}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditModal(item)}
+                            title="Edit Option"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-pms-accent" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => setDeleteTarget(item)}
+                            title="Delete Option"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Add / Edit Modal */}
       <Modal
