@@ -106,7 +106,7 @@ serve(async (req: Request) => {
       const body = await req.json();
       if (body && body.force) forceSend = true;
     } catch (_) {
-      // Empty or non-JSON body is acceptable for standard cron GET/POST
+      // Empty body is standard for scheduled cron jobs
     }
 
     // 1. Fetch active bookings with finalized menu
@@ -138,10 +138,8 @@ serve(async (req: Request) => {
       .order("sort_order");
 
     if (deptErr) throw deptErr;
-    const deptMap = new Map<string, string>();
-    (deptsData || []).forEach((d) => deptMap.set(d.key, d.label));
 
-    // 3. Fetch all staff users (exclude admins from delay alerts)
+    // 3. Fetch all staff users (strictly exclude admins/full access from delay alerts)
     const { data: usersData, error: uErr } = await supabase
       .from("pms_users")
       .select(`
@@ -158,11 +156,10 @@ serve(async (req: Request) => {
     if (uErr) throw uErr;
 
     // Map department_key -> array of normalized phone numbers
-    // ONLY include users explicitly mapped to this department, NEVER full access / admin
     const deptRecipientsMap = new Map<string, string[]>();
 
     (usersData || []).forEach((u) => {
-      // Skip admins / full access users per explicit requirement
+      // Exclude admins and full-access users per rule
       if (u.role === "admin" || u.has_full_access) {
         return;
       }
@@ -183,7 +180,7 @@ serve(async (req: Request) => {
       });
     });
 
-    // 4. Fetch past notifications history to check deduplication
+    // 4. Fetch notification history for deduplication
     const { data: notifData } = await supabase
       .from("pms_whatsapp_notifications")
       .select("booking_id, department_key, type, sent_at, status");
@@ -193,21 +190,23 @@ serve(async (req: Request) => {
     const now = new Date();
     const { istDateStr, istHour, istMinute } = getISTDateParts();
 
-    // Check which reminder slot matches current IST time window (or if forced)
-    // Reminder slots: 11:00 AM (11:00-11:45), 3:00 PM (15:00-15:45), 6:00 PM (18:00-18:45)
+    // Strict time-slot evaluation (narrow 20-minute window to avoid duplicate triggers within the same hour)
     let currentReminderSlot: "reminder_11am" | "reminder_3pm" | "reminder_6pm" | null = null;
     let slotLabel = "";
 
-    if (istHour === 11 && istMinute <= 45) {
+    if (istHour === 11 && istMinute < 20) {
       currentReminderSlot = "reminder_11am";
       slotLabel = "11:00 AM";
-    } else if (istHour === 15 && istMinute <= 45) {
+    } else if (istHour === 15 && istMinute < 20) {
       currentReminderSlot = "reminder_3pm";
       slotLabel = "3:00 PM";
-    } else if (istHour === 18 && istMinute <= 45) {
+    } else if (istHour === 18 && istMinute < 20) {
       currentReminderSlot = "reminder_6pm";
       slotLabel = "6:00 PM";
     }
+
+    // Business hours guard: Initial delay alerts only fire between 9:00 AM and 8:00 PM IST
+    const isBusinessHours = istHour >= 9 && istHour < 20;
 
     const tasksToCheck: BookingDeptTask[] = [];
 
@@ -260,33 +259,47 @@ serve(async (req: Request) => {
       });
     });
 
-    const results = [];
     const maytapiConfigured = Boolean(
       maytapiProductId && maytapiPhoneId && maytapiToken
     );
+
+    // Identify which tasks need alerts
+    const alertsToSend: {
+      task: BookingDeptTask;
+      sendType: string;
+      headerTitle: string;
+      recipients: string[];
+      message: string;
+    }[] = [];
 
     for (const task of tasksToCheck) {
       const diffMs = now.getTime() - task.effectiveDeadline.getTime();
       const isDelayed = diffMs > 0;
 
-      if (!isDelayed) continue; // Grace period active (within 48hrs + extensions)
+      if (!isDelayed) continue; // Still within 48-hour window
 
-      // Check notification history for this booking + department
+      // History of past sends for this specific task
       const historyForTask = sentHistory.filter(
         (h) => h.booking_id === task.bookingId && h.department_key === task.deptKey
       );
 
-      const hasEverSentInitial = historyForTask.some((h) => h.type === "initial_delay" && h.status === "Sent");
+      // Check if ANY notification was ever sent for this task
+      const hasAnyPriorNotification = historyForTask.length > 0;
+      const hasEverSentInitial = historyForTask.some(
+        (h) => h.type === "initial_delay" && h.status === "Sent"
+      );
 
       let sendType: "initial_delay" | "reminder_11am" | "reminder_3pm" | "reminder_6pm" | null = null;
       let headerTitle = "⚠️ *TASK DELAYED*";
 
-      if (!hasEverSentInitial) {
-        // First delay alert
-        sendType = "initial_delay";
-        headerTitle = "⚠️ *TASK DELAYED*";
+      if (!hasAnyPriorNotification && !hasEverSentInitial) {
+        // Initial delay alert: ONLY send during daytime business hours (9 AM - 8 PM IST)
+        if (isBusinessHours || forceSend) {
+          sendType = "initial_delay";
+          headerTitle = "⚠️ *TASK DELAYED*";
+        }
       } else if (currentReminderSlot || forceSend) {
-        // Daily scheduled reminder
+        // Daily scheduled reminder (11 AM, 3 PM, 6 PM IST)
         const targetSlot = currentReminderSlot || "reminder_11am";
         const alreadySentSlotToday = historyForTask.some((h) => {
           if (h.type !== targetSlot || h.status !== "Sent") return false;
@@ -309,13 +322,7 @@ serve(async (req: Request) => {
 
       const recipients = deptRecipientsMap.get(task.deptKey) || [];
       if (recipients.length === 0) {
-        console.warn(`[DelayAlerts] No phone numbers found for department: ${task.deptKey}`);
-        results.push({
-          bookingId: task.bookingId,
-          department: task.deptKey,
-          status: "Skipped",
-          reason: "No recipients mapped to department",
-        });
+        console.warn(`[DelayAlerts] No phone numbers mapped for department: ${task.deptKey}`);
         continue;
       }
 
@@ -341,14 +348,26 @@ serve(async (req: Request) => {
         `_Order Rail PMS_`,
       ].join("\n");
 
-      let sendStatus = "Sent";
-      let errorMsg: string | null = null;
+      alertsToSend.push({
+        task,
+        sendType,
+        headerTitle,
+        recipients,
+        message,
+      });
+    }
 
-      if (maytapiConfigured) {
-        const sendEndpoint = `https://api.maytapi.com/api/${maytapiProductId}/${maytapiPhoneId}/sendMessage`;
-        for (const phone of recipients) {
-          try {
-            const resp = await fetch(sendEndpoint, {
+    // Fast parallel dispatch via Promise.allSettled to complete in <1.5s
+    const sendEndpoint = `https://api.maytapi.com/api/${maytapiProductId}/${maytapiPhoneId}/sendMessage`;
+
+    const sendResults = await Promise.allSettled(
+      alertsToSend.map(async (alert) => {
+        let sendStatus = "Sent";
+        let errorMsg: string | null = null;
+
+        if (maytapiConfigured) {
+          const phonePromises = alert.recipients.map((phone) =>
+            fetch(sendEndpoint, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -357,46 +376,50 @@ serve(async (req: Request) => {
               body: JSON.stringify({
                 to_number: phone,
                 type: "text",
-                message,
+                message: alert.message,
               }),
-            });
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok || data.success === false) {
-              sendStatus = "Partial";
-              errorMsg = data.message || `HTTP ${resp.status}`;
-            }
-          } catch (e: any) {
+            }).then((res) => res.json().catch(() => ({})))
+          );
+
+          const phoneResults = await Promise.allSettled(phonePromises);
+          const failed = phoneResults.some(
+            (r) => r.status === "rejected" || (r.status === "fulfilled" && r.value?.success === false)
+          );
+          if (failed) {
             sendStatus = "Partial";
-            errorMsg = e?.message || "Send error";
           }
+        } else {
+          sendStatus = "Skipped";
+          errorMsg = "Maytapi not configured";
         }
-      } else {
-        sendStatus = "Skipped";
-        errorMsg = "Maytapi not configured in environment";
-      }
 
-      // Record in pms_whatsapp_notifications
-      try {
-        await supabase.from("pms_whatsapp_notifications").insert({
-          booking_id: task.bookingId,
-          department_key: task.deptKey,
-          type: sendType,
-          recipients,
+        // Record atomically in pms_whatsapp_notifications
+        try {
+          await supabase.from("pms_whatsapp_notifications").insert({
+            booking_id: alert.task.bookingId,
+            department_key: alert.task.deptKey,
+            type: alert.sendType,
+            recipients: alert.recipients,
+            status: sendStatus,
+            error_message: errorMsg,
+          });
+        } catch (dbErr) {
+          console.warn("[DelayAlerts] Failed to record notification in DB:", dbErr);
+        }
+
+        return {
+          bookingId: alert.task.bookingId,
+          department: alert.task.deptKey,
+          type: alert.sendType,
+          recipientsCount: alert.recipients.length,
           status: sendStatus,
-          error_message: errorMsg,
-        });
-      } catch (insertErr) {
-        console.warn("[DelayAlerts] Failed to record notification in DB:", insertErr);
-      }
+        };
+      })
+    );
 
-      results.push({
-        bookingId: task.bookingId,
-        department: task.deptKey,
-        type: sendType,
-        recipientsCount: recipients.length,
-        status: sendStatus,
-      });
-    }
+    const processedResults = sendResults.map((r) =>
+      r.status === "fulfilled" ? r.value : { status: "Error", error: (r as any).reason?.message }
+    );
 
     return new Response(
       JSON.stringify({
@@ -406,8 +429,8 @@ serve(async (req: Request) => {
         istHour,
         currentReminderSlot,
         checkedTasks: tasksToCheck.length,
-        processedAlerts: results.length,
-        results,
+        processedAlerts: processedResults.length,
+        results: processedResults,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

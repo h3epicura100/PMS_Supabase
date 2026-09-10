@@ -252,20 +252,22 @@ export const notificationService = {
     const now = new Date();
     const { istDateStr, istHour, istMinute } = getISTDateParts();
 
-    // Check reminder window: 11 AM (11:00-11:45), 3 PM (15:00-15:45), 6 PM (18:00-18:45)
+    // Strict reminder window (< 20 min past hour)
     let currentReminderSlot = null;
     let slotLabel = '';
 
-    if (istHour === 11 && istMinute <= 45) {
+    if (istHour === 11 && istMinute < 20) {
       currentReminderSlot = 'reminder_11am';
       slotLabel = '11:00 AM';
-    } else if (istHour === 15 && istMinute <= 45) {
+    } else if (istHour === 15 && istMinute < 20) {
       currentReminderSlot = 'reminder_3pm';
       slotLabel = '3:00 PM';
-    } else if (istHour === 18 && istMinute <= 45) {
+    } else if (istHour === 18 && istMinute < 20) {
       currentReminderSlot = 'reminder_6pm';
       slotLabel = '6:00 PM';
     }
+
+    const isBusinessHours = istHour >= 9 && istHour < 20;
 
     const results = [];
     let delayedCount = 0;
@@ -308,7 +310,7 @@ export const notificationService = {
           h => h.booking_id === b.id && h.department_key === deptKey
         );
 
-        // Check DB history + local fallback cache
+        const hasAnyPriorNotification = historyForTask.length > 0;
         const initialDedupKey = `${b.id}_${deptKey}_initial_delay`;
         const hasEverSentInitial =
           historyForTask.some(h => h.type === 'initial_delay' && h.status === 'Sent') ||
@@ -317,10 +319,11 @@ export const notificationService = {
         let sendType = null;
         let isReminder = false;
 
-        if (!hasEverSentInitial) {
-          // Initial delay alert
-          sendType = 'initial_delay';
-          isReminder = false;
+        if (!hasAnyPriorNotification && !hasEverSentInitial) {
+          if (isBusinessHours || force) {
+            sendType = 'initial_delay';
+            isReminder = false;
+          }
         } else if (currentReminderSlot || force) {
           // Scheduled reminder slot
           const targetSlot = currentReminderSlot || 'reminder_11am';
