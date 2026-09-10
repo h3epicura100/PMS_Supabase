@@ -6,6 +6,7 @@ import { PageContainer } from './PageContainer';
 import { Footer } from './Footer';
 import { NAVIGATION } from '../../constants/permissions';
 import { useRealtime } from '../../hooks/useRealtime';
+import { useAuth } from '../../hooks/useAuth';
 
 export function AppLayout() {
   useRealtime(); // Enable live Supabase PostgreSQL real-time synchronization

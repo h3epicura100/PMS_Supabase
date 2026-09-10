@@ -6,16 +6,15 @@ import { Input } from '../../components/common/Input';
 import { Modal } from '../../components/common/Modal';
 import { ConfirmDialog } from '../../components/common/ConfirmDialog';
 import { toast } from 'sonner';
-import { Plus, Edit2, Trash2, Search, Calendar, Clock, MapPin, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Calendar, Clock } from 'lucide-react';
 
 export function MastersPage() {
-  const [activeTab, setActiveTab] = useState('functionTypes'); // 'functionTypes' | 'eventTimes' | 'venues'
+  const [activeTab, setActiveTab] = useState('functionTypes'); // 'functionTypes' | 'eventTimes'
   const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null); // null for add, object for edit
   const [nameInput, setNameInput] = useState('');
-  const [addressInput, setAddressInput] = useState('');
   const [formError, setFormError] = useState('');
 
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -23,33 +22,26 @@ export function MastersPage() {
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: functionTypes = [], isLoading: loadingFunctions } = useQuery({
+  const { data: functionTypes = [] } = useQuery({
     queryKey: ['master_function_types'],
     queryFn: masterService.getFunctionTypes,
   });
 
-  const { data: eventTimes = [], isLoading: loadingTimes } = useQuery({
+  const { data: eventTimes = [] } = useQuery({
     queryKey: ['master_event_times'],
     queryFn: masterService.getEventTimes,
   });
 
-  const { data: venues = [], isLoading: loadingVenues } = useQuery({
-    queryKey: ['master_venues'],
-    queryFn: masterService.getVenues,
-  });
-
   // Mutations
   const addMutation = useMutation({
-    mutationFn: async ({ tab, name, address }) => {
+    mutationFn: async ({ tab, name }) => {
       if (tab === 'functionTypes') return masterService.addFunctionType(name);
       if (tab === 'eventTimes') return masterService.addEventTime(name);
-      if (tab === 'venues') return masterService.addVenue(name, address);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`master_${activeTab.toLowerCase().replace(/([A-Z])/g, '_$1')}`] });
       queryClient.invalidateQueries({ queryKey: ['master_function_types'] });
       queryClient.invalidateQueries({ queryKey: ['master_event_times'] });
-      queryClient.invalidateQueries({ queryKey: ['master_venues'] });
       toast.success('Master item added successfully!');
       closeModal();
     },
@@ -59,15 +51,13 @@ export function MastersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ tab, id, name, address }) => {
+    mutationFn: async ({ tab, id, name }) => {
       if (tab === 'functionTypes') return masterService.updateFunctionType(id, name);
       if (tab === 'eventTimes') return masterService.updateEventTime(id, name);
-      if (tab === 'venues') return masterService.updateVenue(id, name, address);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['master_function_types'] });
       queryClient.invalidateQueries({ queryKey: ['master_event_times'] });
-      queryClient.invalidateQueries({ queryKey: ['master_venues'] });
       toast.success('Master item updated successfully!');
       closeModal();
     },
@@ -80,12 +70,10 @@ export function MastersPage() {
     mutationFn: async ({ tab, id }) => {
       if (tab === 'functionTypes') return masterService.deleteFunctionType(id);
       if (tab === 'eventTimes') return masterService.deleteEventTime(id);
-      if (tab === 'venues') return masterService.deleteVenue(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['master_function_types'] });
       queryClient.invalidateQueries({ queryKey: ['master_event_times'] });
-      queryClient.invalidateQueries({ queryKey: ['master_venues'] });
       toast.success('Master item deleted!');
       setDeleteTarget(null);
     },
@@ -98,7 +86,6 @@ export function MastersPage() {
   const openAddModal = () => {
     setEditingItem(null);
     setNameInput('');
-    setAddressInput('');
     setFormError('');
     setModalOpen(true);
   };
@@ -106,7 +93,6 @@ export function MastersPage() {
   const openEditModal = (item) => {
     setEditingItem(item);
     setNameInput(item.name || '');
-    setAddressInput(item.address || '');
     setFormError('');
     setModalOpen(true);
   };
@@ -115,7 +101,6 @@ export function MastersPage() {
     setModalOpen(false);
     setEditingItem(null);
     setNameInput('');
-    setAddressInput('');
     setFormError('');
   };
 
@@ -132,32 +117,24 @@ export function MastersPage() {
         tab: activeTab,
         id: editingItem.id,
         name: nameInput.trim(),
-        address: addressInput.trim(),
       });
     } else {
       addMutation.mutate({
         tab: activeTab,
         name: nameInput.trim(),
-        address: addressInput.trim(),
       });
     }
   };
 
-  const currentItems = activeTab === 'functionTypes'
-    ? functionTypes
-    : activeTab === 'eventTimes'
-    ? eventTimes
-    : venues;
+  const currentItems = activeTab === 'functionTypes' ? functionTypes : eventTimes;
 
   const filteredItems = currentItems.filter(item =>
-    item.name.toLowerCase().includes(search.toLowerCase()) ||
-    (item.address && item.address.toLowerCase().includes(search.toLowerCase()))
+    item.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const tabs = [
     { key: 'functionTypes', label: 'Function Types', icon: Calendar, count: functionTypes.length },
     { key: 'eventTimes', label: 'Event Times', icon: Clock, count: eventTimes.length },
-    { key: 'venues', label: 'Venues', icon: MapPin, count: venues.length },
   ];
 
   return (
@@ -240,9 +217,6 @@ export function MastersPage() {
                     </span>
                     <span className="font-bold text-slate-900 text-sm truncate">{item.name}</span>
                   </div>
-                  {activeTab === 'venues' && (
-                    <p className="text-xs text-slate-500 pl-7">{item.address || 'No address specified'}</p>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
@@ -275,7 +249,6 @@ export function MastersPage() {
                   <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                     <th className="py-3.5 px-4 w-16">#</th>
                     <th className="py-3.5 px-4">Name / Title</th>
-                    {activeTab === 'venues' && <th className="py-3.5 px-4">Address</th>}
                     <th className="py-3.5 px-4 text-right w-32">Actions</th>
                   </tr>
                 </thead>
@@ -284,9 +257,6 @@ export function MastersPage() {
                     <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 font-mono text-slate-400">{idx + 1}</td>
                       <td className="py-3.5 px-4 font-semibold text-slate-900">{item.name}</td>
-                      {activeTab === 'venues' && (
-                        <td className="py-3.5 px-4 text-slate-500">{item.address || '—'}</td>
-                      )}
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Button
@@ -327,20 +297,10 @@ export function MastersPage() {
           <Input
             label="Option Name"
             required
-            placeholder={activeTab === 'venues' ? 'e.g. Royal Banquet Hall' : 'e.g. Reception'}
+            placeholder={activeTab === 'functionTypes' ? 'e.g. Wedding' : 'e.g. Dinner'}
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
           />
-
-          {activeTab === 'venues' && (
-            <Input
-              label="Address / Location"
-              optional
-              placeholder="e.g. Civil Lines, Raipur"
-              value={addressInput}
-              onChange={(e) => setAddressInput(e.target.value)}
-            />
-          )}
 
           {formError && (
             <div className="text-xs font-medium text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">

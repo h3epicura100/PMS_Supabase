@@ -141,13 +141,11 @@ export const whatsappService = {
     const bookingId = booking?.id || '—';
     const customer = booking?.customerName || booking?.customer?.name || booking?.customer_name || '—';
     const functionType = booking?.functionType || booking?.function_type || '—';
-    const venue = booking?.venueName || booking?.venue?.name || booking?.venue_name || '—';
     
     const startDate = booking?.eventStartDate || booking?.event_start_date || booking?.eventDate || booking?.event_date;
     const endDate = booking?.eventEndDate || booking?.event_end_date || booking?.eventDate || booking?.event_date;
     const dateRange = formatDateRangeDisplay(startDate, endDate);
 
-    const pax = (booking?.totalGuestCount ?? booking?.guestCount ?? booking?.total_guest_count)?.toLocaleString() || '—';
     const remarksText = remarks || booking?.menu?.remarks || booking?.remarks || '';
     const refName = booking?.referenceName || booking?.reference_name || '';
     const refNum = booking?.referenceNumber || booking?.reference_number || '';
@@ -160,9 +158,7 @@ export const whatsappService = {
       `📋 *Booking ID:* ${bookingId}`,
       `👤 *Customer:* ${customer}`,
       `🎊 *Function:* ${functionType}`,
-      `📍 *Venue:* ${venue}`,
       `📅 *Date:* ${dateRange}`,
-      `👥 *Total Guests:* ${pax} Pax`,
     ];
 
     if (refName) {

@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { settingsService } from './settingsService';
 import { UsersTable } from './UsersTable';
 import { UserModal } from './UserModal';
+import { NotificationLogs } from './NotificationLogs';
 import { Button } from '../../components/common/Button';
 import { useAuth } from '../../hooks/useAuth';
-import { Plus } from 'lucide-react';
+import { Plus, Users, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function SettingsPage() {
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'notifications'
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -61,36 +63,69 @@ export function SettingsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading && activeTab === 'users' && users.length === 0) {
     return <div className="p-8 text-center text-sm text-pms-muted">Loading settings...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-pms-border pb-4">
-        <div>
-          <h3 className="text-lg font-bold text-pms-text">User Accounts & Access</h3>
-          <p className="text-xs text-pms-muted mt-0.5">Control staff credentials and page permissions.</p>
+      {/* Top Tabs */}
+      <div className="flex items-center justify-between border-b border-pms-border pb-4 gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
+              activeTab === 'users'
+                ? 'bg-pms-primary text-white shadow-sm'
+                : 'text-pms-muted hover:bg-slate-100 hover:text-pms-text'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>User Accounts & Access</span>
+            <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'users' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {users.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('notifications')}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
+              activeTab === 'notifications'
+                ? 'bg-pms-primary text-white shadow-sm'
+                : 'text-pms-muted hover:bg-slate-100 hover:text-pms-text'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Delay & WhatsApp Logs</span>
+          </button>
         </div>
 
-        <Button variant="primary" onClick={handleOpenNew}>
-          <Plus className="w-4 h-4" />
-          <span>New User</span>
-        </Button>
+        {activeTab === 'users' && (
+          <Button variant="primary" onClick={handleOpenNew}>
+            <Plus className="w-4 h-4" />
+            <span>New User</span>
+          </Button>
+        )}
       </div>
 
-      <UsersTable
-        users={users}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      {activeTab === 'users' ? (
+        <>
+          <UsersTable
+            users={users}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
 
-      <UserModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialValues={selectedUser}
-        onSave={handleSave}
-      />
+          <UserModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            initialValues={selectedUser}
+            onSave={handleSave}
+          />
+        </>
+      ) : (
+        <NotificationLogs />
+      )}
     </div>
   );
 }

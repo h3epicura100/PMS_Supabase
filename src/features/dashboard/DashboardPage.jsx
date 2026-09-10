@@ -8,10 +8,13 @@ import { UpcomingEvents } from './UpcomingEvents';
 import { DeptPerformance } from './DeptPerformance';
 import { BookingProgress } from './BookingProgress';
 import { ReadyToClose } from './ReadyToClose';
+import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'sonner';
 
 export function DashboardPage() {
   const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.has_full_access;
 
   const { data, isLoading } = useQuery({
     queryKey: ['pms_dashboard'],
@@ -20,6 +23,11 @@ export function DashboardPage() {
   });
 
   const handleCloseBooking = async (id) => {
+    if (!isAdmin) {
+      toast.error('Unauthorized: Only administrators can close bookings.');
+      return;
+    }
+
     try {
       await bookingService.closeBooking(id);
       queryClient.invalidateQueries({ queryKey: ['pms_bookings'] });

@@ -1,5 +1,6 @@
 import { supabase } from '../../services/supabase';
 import { DEPT_LIST } from '../../constants/departments';
+import { notificationService } from '../../services/notificationService';
 
 function emptyDept(cfg) {
   const base = { status: 'Pending', remarks: '', attachment: null, updatedBy: '', updatedAt: '' };
@@ -58,14 +59,19 @@ export const bookingService = {
             attachment: e.attachment_path ? { name: e.attachment_name, path: e.attachment_path } : null,
             updatedBy: e.updated_by,
             updatedAt: e.updated_at,
+            completedAt: e.completed_at || (e.status === 'Complete' ? e.updated_at : null),
           }));
           const allDone = entries.length > 0 && entries.every(e => e.status === 'Complete');
+          const latestCompletedAt = allDone
+            ? (dt?.completed_at || dt?.updated_at || entries.reduce((max, e) => (e.completedAt && (!max || e.completedAt > max) ? e.completedAt : max), ''))
+            : '';
 
           depts[cfg.key] = {
             status: allDone ? 'Complete' : 'Pending',
             entries,
             updatedBy: (dt && dt.updated_by) || (entries[0] && entries[0].updatedBy) || '',
             updatedAt: (dt && dt.updated_at) || (entries[0] && entries[0].updatedAt) || '',
+            completedAt: latestCompletedAt || (dt && (dt.completed_at || (dt.status === 'Complete' ? dt.updated_at : null))) || '',
           };
         } else if (cfg.type === 'cheeseDairy') {
           const entries = (b.pms_cheese_dairy_entries || []).map(e => ({
@@ -77,14 +83,19 @@ export const bookingService = {
             attachment: e.attachment_path ? { name: e.attachment_name, path: e.attachment_path } : null,
             updatedBy: e.updated_by,
             updatedAt: e.updated_at,
+            completedAt: e.completed_at || (e.status === 'Complete' ? e.updated_at : null),
           }));
           const allDone = entries.length > 0 && entries.every(e => e.status === 'Complete');
+          const latestCompletedAt = allDone
+            ? (dt?.completed_at || dt?.updated_at || entries.reduce((max, e) => (e.completedAt && (!max || e.completedAt > max) ? e.completedAt : max), ''))
+            : '';
 
           depts[cfg.key] = {
             status: allDone ? 'Complete' : 'Pending',
             entries,
             updatedBy: (dt && dt.updated_by) || (entries[0] && entries[0].updatedBy) || '',
             updatedAt: (dt && dt.updated_at) || (entries[0] && entries[0].updatedAt) || '',
+            completedAt: latestCompletedAt || (dt && (dt.completed_at || (dt.status === 'Complete' ? dt.updated_at : null))) || '',
           };
         } else {
           depts[cfg.key] = {
@@ -93,6 +104,7 @@ export const bookingService = {
             attachment: dt && dt.attachment_path ? { name: dt.attachment_name, path: dt.attachment_path } : null,
             updatedBy: dt ? dt.updated_by : '',
             updatedAt: dt ? dt.updated_at : '',
+            completedAt: dt ? (dt.completed_at || (dt.status === 'Complete' ? dt.updated_at : '')) : '',
           };
         }
       });
@@ -115,7 +127,9 @@ export const bookingService = {
       return ensureBookingShape({
         id: b.id,
         bookingDate: b.booking_date || (b.created_at ? b.created_at.slice(0, 10) : null),
-        createdAt: b.created_at ? b.created_at.slice(0, 10) : new Date().toISOString().slice(0, 10),
+        createdAt: b.created_at || new Date().toISOString(),
+        delayDeadlineOverride: b.delay_deadline_override || null,
+        effectiveDelayDeadline: b.effective_delay_deadline || null,
         customerName: b.customer_name || '—',
         customerMobile: b.customer_mobile || '—',
         altNumber: b.alt_number,
@@ -176,6 +190,14 @@ export const bookingService = {
       throw new Error(error.message || 'Failed to create booking in database.');
     }
 
+    // Priority Extension Rule: extend delay deadline by +24hrs for any existing active bookings with later event date
+    const targetEventDate = bookingData.eventStartDate || bookingData.eventEndDate;
+    if (targetEventDate) {
+      notificationService.extendDelayForExistingBookings(targetEventDate, data).catch((e) => {
+        console.warn('Priority extension background job error:', e);
+      });
+    }
+
     return data;
   },
 
@@ -192,6 +214,7 @@ export const bookingService = {
         event_start_date: eventStartDate,
         event_end_date: eventEndDate,
         event_date: eventStartDate || eventEndDate,
+        venue_name: bookingData.venueName || null,
         remarks: bookingData.remarks,
       })
       .eq('id', id);

@@ -3,23 +3,50 @@ node_modules
 .pnp
 .pnp.js
 
-# testing
+# testing & coverage
 coverage
 
 # production
 dist
 
-# environment variables
+# database & SQL migrations / scripts
+pms-database/
+[Dd]atabase/
+*.sql
+
+# environment variables & secrets
 .env
-.env*
+.env.*
+.env*.local
 !.env.example
+secrets*.json
+credentials*.json
+*.key
+*.pem
+*.token
+
+# test & scratch scripts containing credentials / direct queries
+test_*.js
+test_*.mjs
+scratch_*.js
+scratch_*.mjs
+query_*.js
+query_*.mjs
+*.local.js
+*.local.mjs
+*.local.json
+scratch/
+
+# Supabase CLI local metadata & temp
+supabase/.temp/
+supabase/.branches/
+supabase/.env
 
 # legacy reference files
 catering-pms*.html
 
 # misc
 .DS_Store
-*.pem
 
 # debug
 npm-debug.log*

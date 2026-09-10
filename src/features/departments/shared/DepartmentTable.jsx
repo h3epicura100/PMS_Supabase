@@ -3,7 +3,7 @@ import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { DelayBadge } from '../../../components/shared/DelayBadge';
 import { Button } from '../../../components/common/Button';
 import { formatDateDisplay, formatDateRangeDisplay } from '../../../utils/dateUtils';
-import { derivedPlannedDate, calculateDelayInfo } from '../../../utils/delayUtils';
+import { derivedPlannedDate, calculateDelayInfo, getEffectiveDeadline } from '../../../utils/delayUtils';
 import { storageService } from '../../../services/storageService';
 import { Paperclip, Calendar } from 'lucide-react';
 
@@ -103,10 +103,15 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
           const effectiveStatus = deptData.status || (b.status === 'closed' || b.closed ? 'Complete' : 'Pending');
           const anchorDate = b.eventStartDate || b.eventDate;
           const plannedDate = derivedPlannedDate(anchorDate);
-          const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
+          const delayInfo = calculateDelayInfo(b, effectiveStatus, deptData.completedAt || deptData.updatedAt);
           const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
           const sessionCount = b.eventSchedule?.length || 0;
           const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
+
+          const effectiveDeadline = getEffectiveDeadline(b);
+          const deadlineDisplay = effectiveDeadline
+            ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(effectiveDeadline)
+            : '—';
 
           const cardBorderTint = delayInfo.cls === 'delayed'
             ? 'border-red-300 bg-red-50/30'
@@ -175,8 +180,8 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
 
                 {isPendingTab && (
                   <div className="flex items-center justify-between sm:justify-start sm:gap-3 py-1 border-b border-slate-100/80 sm:border-0">
-                    <span className="text-[11px] font-semibold uppercase text-slate-400">Planned Date:</span>
-                    <span className="font-medium text-pms-muted">{formatDateDisplay(plannedDate)}</span>
+                    <span className="text-[11px] font-semibold uppercase text-slate-400">Task Deadline:</span>
+                    <span className="font-medium text-pms-muted font-mono">{deadlineDisplay}</span>
                   </div>
                 )}
 
@@ -235,7 +240,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                 <th className="py-3 px-4">Booking ID</th>
                 <th className="py-3 px-4">Customer</th>
                 <th className="py-3 px-4">Event Date</th>
-                {isPendingTab && <th className="py-3 px-4">Planned Date</th>}
+                {isPendingTab && <th className="py-3 px-4">Task Deadline</th>}
                 <th className="py-3 px-4">Venue</th>
                 <th className="py-3 px-4">Guests</th>
                 <th className="py-3 px-4">Menu Attachment</th>
@@ -252,10 +257,15 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                 const effectiveStatus = deptData.status || (b.status === 'closed' || b.closed ? 'Complete' : 'Pending');
                 const anchorDate = b.eventStartDate || b.eventDate;
                 const plannedDate = derivedPlannedDate(anchorDate);
-                const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
+                const delayInfo = calculateDelayInfo(b, effectiveStatus, deptData.completedAt || deptData.updatedAt);
                 const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
                 const sessionCount = b.eventSchedule?.length || 0;
                 const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
+
+                const effectiveDeadline = getEffectiveDeadline(b);
+                const deadlineDisplay = effectiveDeadline
+                  ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true }).format(effectiveDeadline)
+                  : '—';
 
                 const rowTint = delayInfo.cls === 'delayed'
                   ? 'bg-red-50/40 hover:bg-red-50/70'
@@ -304,8 +314,8 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                       )}
                     </td>
                     {isPendingTab && (
-                      <td className="py-3 px-4 text-pms-muted font-medium whitespace-nowrap">
-                        {formatDateDisplay(plannedDate)}
+                      <td className="py-3 px-4 text-pms-muted font-medium whitespace-nowrap font-mono text-[11px]">
+                        {deadlineDisplay}
                       </td>
                     )}
                     <td className="py-3 px-4 text-pms-muted">

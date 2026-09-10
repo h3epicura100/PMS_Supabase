@@ -2,8 +2,11 @@ import React from 'react';
 import { Button } from '../../components/common/Button';
 import { formatDateRangeDisplay } from '../../utils/dateUtils';
 import { CheckCircle2, Archive } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 export function ReadyToClose({ bookings = [], closedBookings = [], onCloseBooking }) {
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.has_full_access;
   const hasBookings = bookings.length > 0 || closedBookings.length > 0;
 
   return (
@@ -44,13 +47,20 @@ export function ReadyToClose({ bookings = [], closedBookings = [], onCloseBookin
                   </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => onCloseBooking(b.id)}
-                >
-                  Move to History
-                </Button>
+                {isAdmin ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => onCloseBooking(b.id)}
+                  >
+                    Move to History
+                  </Button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Event Ready
+                  </span>
+                )}
               </div>
             );
           })}

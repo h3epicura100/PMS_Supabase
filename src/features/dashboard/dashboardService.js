@@ -24,7 +24,7 @@ export const dashboardService = {
       DEPT_LIST.forEach(cfg => {
         const deptData = b.departments?.[cfg.key] || {};
         const plannedDate = derivedPlannedDate(anchorDate);
-        const delayInfo = calculateDelayInfo(plannedDate, deptData.status, deptData.updatedAt);
+        const delayInfo = calculateDelayInfo(b, deptData.status, deptData.completedAt || deptData.updatedAt);
         activeDeptRows.push({
           booking: b,
           deptConfig: cfg,
@@ -71,7 +71,7 @@ export const dashboardService = {
         const deptData = b.departments?.[cfg.key] || {};
         const effectiveStatus = isClosed ? 'Complete' : (deptData.status || 'Pending');
         const plannedDate = derivedPlannedDate(anchorDate);
-        const delayInfo = calculateDelayInfo(plannedDate, effectiveStatus, deptData.updatedAt);
+        const delayInfo = calculateDelayInfo(b, effectiveStatus, deptData.completedAt || deptData.updatedAt);
         allDeptRows.push({
           booking: b,
           deptConfig: cfg,
