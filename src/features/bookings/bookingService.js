@@ -1,9 +1,10 @@
 import { supabase } from '../../services/supabase';
+import { storageService } from '../../services/storageService';
 import { DEPT_LIST } from '../../constants/departments';
 import { notificationService } from '../../services/notificationService';
 
 function emptyDept(cfg) {
-  const base = { status: 'Pending', remarks: '', attachment: null, updatedBy: '', updatedAt: '' };
+  const base = { status: 'Pending', remarks: '', attachments: [], updatedBy: '', updatedAt: '' };
   if (cfg.type === 'vegetables' || cfg.type === 'cheeseDairy') { base.entries = []; }
   return base;
 }
@@ -15,7 +16,7 @@ function ensureBookingShape(b) {
     const d = b.departments[cfg.key];
     if (cfg.type === 'vegetables' || cfg.type === 'cheeseDairy') { d.entries = d.entries || []; }
   });
-  b.menu = b.menu || { status: 'Pending', details: '', reason: '', remarks: '', attachment: null, finalizationDate: '' };
+  b.menu = b.menu || { status: 'Pending', details: '', reason: '', remarks: '', attachments: [], finalizationDate: '' };
   b.status = b.status || 'active';
   return b;
 }
@@ -56,7 +57,7 @@ export const bookingService = {
             source: e.source,
             status: e.status,
             remarks: e.remarks,
-            attachment: e.attachment_path ? { name: e.attachment_name, path: e.attachment_path } : null,
+            attachments: Array.isArray(e.attachments) ? e.attachments : (e.attachment_path ? [{ name: e.attachment_name, path: e.attachment_path }] : []),
             updatedBy: e.updated_by,
             updatedAt: e.updated_at,
             completedAt: e.completed_at || (e.status === 'Complete' ? e.updated_at : null),
@@ -80,7 +81,7 @@ export const bookingService = {
             source: e.source,
             status: e.status,
             remarks: e.remarks,
-            attachment: e.attachment_path ? { name: e.attachment_name, path: e.attachment_path } : null,
+            attachments: Array.isArray(e.attachments) ? e.attachments : (e.attachment_path ? [{ name: e.attachment_name, path: e.attachment_path }] : []),
             updatedBy: e.updated_by,
             updatedAt: e.updated_at,
             completedAt: e.completed_at || (e.status === 'Complete' ? e.updated_at : null),
@@ -101,7 +102,7 @@ export const bookingService = {
           depts[cfg.key] = {
             status: dt ? dt.status : 'Pending',
             remarks: dt ? dt.remarks : '',
-            attachment: dt && dt.attachment_path ? { name: dt.attachment_name, path: dt.attachment_path } : null,
+            attachments: dt && Array.isArray(dt.attachments) ? dt.attachments : (dt && dt.attachment_path ? [{ name: dt.attachment_name, path: dt.attachment_path }] : []),
             updatedBy: dt ? dt.updated_by : '',
             updatedAt: dt ? dt.updated_at : '',
             completedAt: dt ? (dt.completed_at || (dt.status === 'Complete' ? dt.updated_at : '')) : '',
@@ -115,7 +116,7 @@ export const bookingService = {
         id: s.id,
         date: s.event_date,
         timeLabel: s.time_label,
-        guestCount: Number(s.guest_count || 0),
+        guestCount: Number(s.guestCount || s.guest_count || 0),
         sortOrder: s.sort_order ?? 0,
       })).sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -149,7 +150,7 @@ export const bookingService = {
           status: menuTask ? menuTask.status : 'Pending',
           reason: menuTask ? menuTask.reason : '',
           remarks: menuTask ? menuTask.remarks : '',
-          attachment: menuTask && menuTask.attachment_path ? { name: menuTask.attachment_name, path: menuTask.attachment_path } : null,
+          attachments: menuTask && Array.isArray(menuTask.attachments) ? menuTask.attachments : (menuTask && menuTask.attachment_path ? [{ name: menuTask.attachment_name, path: menuTask.attachment_path }] : []),
           finalizationDate: menuTask ? menuTask.finalization_date : '',
           whatsappStatus: menuTask ? menuTask.whatsapp_status : null,
           whatsappSentAt: menuTask ? menuTask.whatsapp_sent_at : null,
@@ -259,5 +260,63 @@ export const bookingService = {
   async reopenBooking(id) {
     const { error } = await supabase.from('pms_bookings').update({ status: 'active' }).eq('id', id);
     if (error) throw new Error(error.message);
+  },
+
+  /**
+   * Permanently deletes a booking and all associated child data & storage files from everywhere.
+   */
+  async deleteBooking(id) {
+    if (!id) return;
+
+    // 1. Collect storage attachment paths to clean up
+    const pathsToDelete = [];
+    try {
+      const [deptTasks, menuTasks, vegEntries, cheeseEntries] = await Promise.all([
+        supabase.from('pms_department_tasks').select('attachments').eq('booking_id', id),
+        supabase.from('pms_menu_tasks').select('attachments').eq('booking_id', id),
+        supabase.from('pms_vegetable_entries').select('attachments').eq('booking_id', id),
+        supabase.from('pms_cheese_dairy_entries').select('attachments').eq('booking_id', id),
+      ]);
+
+      const collect = (res) => {
+        if (!res?.data) return;
+        res.data.forEach(r => {
+          if (Array.isArray(r.attachments)) {
+            r.attachments.forEach(a => { if (a?.path) pathsToDelete.push(a.path); });
+          }
+        });
+      };
+
+      collect(deptTasks);
+      collect(menuTasks);
+      collect(vegEntries);
+      collect(cheeseEntries);
+    } catch (err) {
+      console.warn('Could not collect attachments for deletion:', err);
+    }
+
+    // 2. Delete child records
+    await Promise.allSettled([
+      supabase.from('pms_department_tasks').delete().eq('booking_id', id),
+      supabase.from('pms_menu_tasks').delete().eq('booking_id', id),
+      supabase.from('pms_vegetable_entries').delete().eq('booking_id', id),
+      supabase.from('pms_cheese_dairy_entries').delete().eq('booking_id', id),
+      supabase.from('pms_event_schedule').delete().eq('booking_id', id),
+      supabase.from('pms_whatsapp_notifications').delete().eq('booking_id', id),
+    ]);
+
+    // 3. Delete parent booking record
+    const { error } = await supabase.from('pms_bookings').delete().eq('id', id);
+    if (error) {
+      console.error('Failed to delete booking in Supabase:', error.message);
+      throw new Error(error.message || 'Failed to delete booking.');
+    }
+
+    // 4. Clean up storage files in background
+    if (pathsToDelete.length > 0) {
+      storageService.deleteAttachments(pathsToDelete).catch((e) => {
+        console.warn('Error deleting storage files:', e);
+      });
+    }
   }
 };

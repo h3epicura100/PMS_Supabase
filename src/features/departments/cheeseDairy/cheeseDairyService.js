@@ -3,7 +3,7 @@ import { storageService } from '../../../services/storageService';
 
 export const cheeseDairyService = {
   /**
-   * Saves repeatable cheese & dairy entries directly in Supabase.
+   * Saves repeatable cheese & dairy entries directly in Supabase with multi-attachment support.
    */
   async saveCheeseDairy(bookingId, entries, updatedBy) {
     const processedEntries = [];
@@ -11,14 +11,23 @@ export const cheeseDairyService = {
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
-      let attachment = entry.attachment || null;
+      let kept = entry.keptAttachments !== undefined
+        ? entry.keptAttachments
+        : (Array.isArray(entry.attachments) ? entry.attachments : (entry.attachment ? [entry.attachment] : []));
 
-      if (entry.status === 'Complete' && entry.attachmentFile) {
-        const uploaded = await storageService.uploadAttachment(`cheeseDairy/${bookingId}/${i}`, entry.attachmentFile);
-        if (uploaded) {
-          attachment = uploaded;
-        }
+      let newlyUploaded = [];
+      if (entry.status === 'Complete' && entry.attachmentFiles && entry.attachmentFiles.length > 0) {
+        newlyUploaded = await storageService.uploadMultipleAttachments(
+          `cheeseDairy/${bookingId}/${i}`,
+          entry.attachmentFiles
+        );
       }
+
+      if (entry.deletedPaths && entry.deletedPaths.length > 0) {
+        await storageService.deleteAttachments(entry.deletedPaths);
+      }
+
+      const finalAttachments = [...kept, ...newlyUploaded];
 
       processedEntries.push({
         id: entry.id || undefined,
@@ -26,7 +35,7 @@ export const cheeseDairyService = {
         source: entry.itemType === 'English' ? (entry.source || 'Local') : null,
         status: entry.status,
         remarks: entry.remarks,
-        attachment,
+        attachments: finalAttachments,
         updatedBy,
         updatedAt: nowIso,
       });
@@ -51,8 +60,7 @@ export const cheeseDairyService = {
       source: e.source,
       status: e.status,
       remarks: e.remarks,
-      attachment_path: e.attachment?.path || null,
-      attachment_name: e.attachment?.name || null,
+      attachments: e.attachments,
       updated_by: updatedBy,
       updated_at: nowIso,
       completed_at: e.status === 'Complete' ? nowIso : null,

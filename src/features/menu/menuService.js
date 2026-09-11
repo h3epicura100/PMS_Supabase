@@ -4,17 +4,29 @@ import { whatsappService } from '../../services/whatsappService';
 
 export const menuService = {
   /**
-   * Updates menu decision status, reason, remarks & attachment in Supabase,
+   * Updates menu decision status, reason, remarks & attachments in Supabase,
    * and triggers WhatsApp notifications when finalized.
    */
-  async updateMenuDecision(bookingId, { status, reason, remarks, attachmentFile, existingAttachment, bookingData }) {
-    let attachment = existingAttachment || null;
+  async updateMenuDecision(bookingId, {
+    status,
+    reason,
+    remarks,
+    attachmentFiles = [],
+    keptAttachments = [],
+    deletedPaths = [],
+    bookingData
+  }) {
+    let finalAttachments = [...(keptAttachments || [])];
 
-    if (status === 'Finalized' && attachmentFile) {
-      const uploaded = await storageService.uploadAttachment(`menu/${bookingId}`, attachmentFile);
-      if (uploaded) {
-        attachment = uploaded;
+    if (status === 'Finalized' && attachmentFiles && attachmentFiles.length > 0) {
+      const uploadedList = await storageService.uploadMultipleAttachments(`menu/${bookingId}`, attachmentFiles);
+      if (uploadedList && uploadedList.length > 0) {
+        finalAttachments = [...finalAttachments, ...uploadedList];
       }
+    }
+
+    if (deletedPaths && deletedPaths.length > 0) {
+      await storageService.deleteAttachments(deletedPaths);
     }
 
     const finalizationDate = status === 'Finalized' ? new Date().toISOString().slice(0, 10) : null;
@@ -24,8 +36,7 @@ export const menuService = {
       status,
       reason: status !== 'Finalized' ? reason : null,
       remarks: status === 'Finalized' ? remarks : null,
-      attachment_path: attachment?.path || null,
-      attachment_name: attachment?.name || null,
+      attachments: finalAttachments,
       finalization_date: finalizationDate,
       updated_at: new Date().toISOString(),
     };
@@ -45,10 +56,11 @@ export const menuService = {
     // Trigger WhatsApp notification if status is Finalized
     if (status === 'Finalized') {
       try {
+        const primaryAtt = finalAttachments[0] || null;
         whatsappResult = await whatsappService.sendMenuFinalizedNotification(
           bookingData || { id: bookingId },
-          attachment?.path,
-          attachment?.name,
+          primaryAtt?.path,
+          primaryAtt?.name,
           remarks
         );
 

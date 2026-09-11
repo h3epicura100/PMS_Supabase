@@ -63,3 +63,20 @@ export function useReopenBooking() {
     },
   });
 }
+
+export function useDeleteBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id) => bookingService.deleteBooking(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pms_bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['pms_dashboard'] });
+      toast.success('Booking deleted permanently from everywhere.');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to delete booking.');
+    },
+  });
+}
+

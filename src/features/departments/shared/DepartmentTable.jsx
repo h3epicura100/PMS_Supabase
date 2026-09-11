@@ -8,9 +8,12 @@ import { storageService } from '../../../services/storageService';
 import { Paperclip, Calendar } from 'lucide-react';
 
 function MenuAttachmentCell({ booking, onViewMenu }) {
-  const attachment = booking.menu?.attachment;
+  const menuAttachments = Array.isArray(booking.menu?.attachments)
+    ? booking.menu.attachments
+    : (booking.menu?.attachment ? [booking.menu.attachment] : []);
+  const validList = menuAttachments.filter(a => a && (a.name || a.path));
 
-  if (!attachment || (!attachment.name && !attachment.path)) {
+  if (!validList.length) {
     if (onViewMenu) {
       return (
         <button
@@ -25,13 +28,28 @@ function MenuAttachmentCell({ booking, onViewMenu }) {
     return <span className="text-slate-400">—</span>;
   }
 
+  if (validList.length > 1) {
+    return (
+      <button
+        onClick={() => onViewMenu?.(booking.id)}
+        type="button"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+        title="View All Menu Attachments"
+      >
+        <Paperclip className="w-3.5 h-3.5 text-pms-accent flex-shrink-0" />
+        <span>Menu ({validList.length} files)</span>
+      </button>
+    );
+  }
+
+  const single = validList[0];
   const handleView = async (e) => {
     e.stopPropagation();
-    if (attachment.path?.startsWith('data:')) {
-      window.open(attachment.path, '_blank');
+    if (single.path?.startsWith('data:') || single.path?.startsWith('http')) {
+      window.open(single.path, '_blank');
       return;
     }
-    const url = await storageService.getSignedUrl(attachment.path);
+    const url = await storageService.getSignedUrl(single.path);
     if (url) {
       window.open(url, '_blank');
     } else if (onViewMenu) {
@@ -44,41 +62,80 @@ function MenuAttachmentCell({ booking, onViewMenu }) {
       onClick={handleView}
       type="button"
       className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-      title={attachment.name || 'View Menu Attachment'}
+      title={single.name || 'View Menu Attachment'}
     >
       <Paperclip className="w-3.5 h-3.5 text-pms-accent flex-shrink-0" />
-      <span className="max-w-[120px] truncate">{attachment.name || 'Menu Doc'}</span>
+      <span className="max-w-[120px] truncate">{single.name || 'Menu Doc'}</span>
     </button>
   );
 }
 
-function AttachmentCell({ attachment }) {
-  if (!attachment || (!attachment.name && !attachment.path)) {
+function AttachmentCell({ attachments }) {
+  const list = Array.isArray(attachments)
+    ? attachments.filter(a => a && (a.name || a.path))
+    : (attachments && (attachments.name || attachments.path) ? [attachments] : []);
+
+  if (!list.length) {
     return <span className="text-slate-400">—</span>;
   }
 
-  const handleView = async (e) => {
-    e.stopPropagation();
-    if (attachment.path?.startsWith('data:')) {
-      window.open(attachment.path, '_blank');
-      return;
-    }
-    const url = await storageService.getSignedUrl(attachment.path);
-    if (url) {
-      window.open(url, '_blank');
-    }
-  };
+  if (list.length === 1) {
+    const single = list[0];
+    const handleView = async (e) => {
+      e.stopPropagation();
+      if (single.path?.startsWith('data:') || single.path?.startsWith('http')) {
+        window.open(single.path, '_blank');
+        return;
+      }
+      const url = await storageService.getSignedUrl(single.path);
+      if (url) window.open(url, '_blank');
+    };
 
+    return (
+      <button
+        onClick={handleView}
+        type="button"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+        title={single.name || 'View Proof'}
+      >
+        <Paperclip className="w-3.5 h-3.5 text-pms-accent flex-shrink-0" />
+        <span className="max-w-[120px] truncate">{single.name || 'View Proof'}</span>
+      </button>
+    );
+  }
+
+  // Multiple files
   return (
-    <button
-      onClick={handleView}
-      type="button"
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-      title="View Attachment Proof"
-    >
-      <Paperclip className="w-3.5 h-3.5 text-pms-accent flex-shrink-0" />
-      <span className="max-w-[120px] truncate">{attachment.name || 'View Proof'}</span>
-    </button>
+    <div className="flex items-center gap-1 flex-wrap">
+      {list.slice(0, 2).map((att, i) => {
+        const handleView = async (e) => {
+          e.stopPropagation();
+          if (att.path?.startsWith('data:') || att.path?.startsWith('http')) {
+            window.open(att.path, '_blank');
+            return;
+          }
+          const url = await storageService.getSignedUrl(att.path);
+          if (url) window.open(url, '_blank');
+        };
+        return (
+          <button
+            key={att.path || i}
+            onClick={handleView}
+            type="button"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer"
+            title={att.name || `Proof #${i + 1}`}
+          >
+            <Paperclip className="w-3 h-3 text-pms-accent flex-shrink-0" />
+            <span className="max-w-[80px] truncate">{att.name || `Proof ${i + 1}`}</span>
+          </button>
+        );
+      })}
+      {list.length > 2 && (
+        <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+          +{list.length - 2} more
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -120,7 +177,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
             : 'border-pms-border bg-white';
 
           let remarksText = '—';
-          let attachmentElement = <span className="text-slate-400">—</span>;
+          let allAttachments = [];
 
           if ((deptKey === 'vegetables' || deptKey === 'cheeseDairy') && Array.isArray(deptData.entries) && deptData.entries.length > 0) {
             const remarksList = deptData.entries
@@ -128,14 +185,17 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
               .filter(Boolean);
             remarksText = remarksList.length > 0 ? remarksList.join('; ') : '—';
 
-            const entryWithAttachment = deptData.entries.find(e => e.attachment && (e.attachment.name || e.attachment.path));
-            if (entryWithAttachment) {
-              attachmentElement = <AttachmentCell attachment={entryWithAttachment.attachment} />;
-            }
+            allAttachments = deptData.entries.flatMap(e =>
+              Array.isArray(e.attachments) ? e.attachments : (e.attachment ? [e.attachment] : [])
+            ).filter(a => a && (a.name || a.path));
           } else {
             remarksText = deptData.remarks || '—';
-            attachmentElement = <AttachmentCell attachment={deptData.attachment} />;
+            allAttachments = Array.isArray(deptData.attachments)
+              ? deptData.attachments
+              : (deptData.attachment ? [deptData.attachment] : []);
           }
+
+          const attachmentElement = <AttachmentCell attachments={allAttachments} />;
 
           return (
             <div
@@ -274,7 +334,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                   : 'hover:bg-slate-50/80';
 
                 let remarksText = '—';
-                let attachmentElement = <span className="text-slate-400">—</span>;
+                let allAttachments = [];
 
                 if ((deptKey === 'vegetables' || deptKey === 'cheeseDairy') && Array.isArray(deptData.entries) && deptData.entries.length > 0) {
                   const remarksList = deptData.entries
@@ -282,14 +342,17 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                     .filter(Boolean);
                   remarksText = remarksList.length > 0 ? remarksList.join('; ') : '—';
 
-                  const entryWithAttachment = deptData.entries.find(e => e.attachment && (e.attachment.name || e.attachment.path));
-                  if (entryWithAttachment) {
-                    attachmentElement = <AttachmentCell attachment={entryWithAttachment.attachment} />;
-                  }
+                  allAttachments = deptData.entries.flatMap(e =>
+                    Array.isArray(e.attachments) ? e.attachments : (e.attachment ? [e.attachment] : [])
+                  ).filter(a => a && (a.name || a.path));
                 } else {
                   remarksText = deptData.remarks || '—';
-                  attachmentElement = <AttachmentCell attachment={deptData.attachment} />;
+                  allAttachments = Array.isArray(deptData.attachments)
+                    ? deptData.attachments
+                    : (deptData.attachment ? [deptData.attachment] : []);
                 }
+
+                const attachmentElement = <AttachmentCell attachments={allAttachments} />;
 
                 return (
                   <tr key={b.id} className={`transition-colors ${rowTint}`}>

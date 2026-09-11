@@ -3,14 +3,17 @@ import { Modal } from '../../components/common/Modal';
 import { BookingSummary } from '../../components/shared/BookingSummary';
 import { Textarea } from '../../components/common/Textarea';
 import { Button } from '../../components/common/Button';
+import { AttachmentUploader } from '../../components/common/AttachmentUploader';
 import { useUpdateMenuDecision } from './menuHooks';
-import { UploadCloud, CheckCircle2, Clock, XCircle, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 
 export function MenuDecisionModal({ isOpen, onClose, booking }) {
   const [status, setStatus] = useState('Pending');
   const [reason, setReason] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [file, setFile] = useState(null);
+  const [newFiles, setNewFiles] = useState([]);
+  const [keptAttachments, setKeptAttachments] = useState([]);
+  const [deletedPaths, setDeletedPaths] = useState([]);
   const [error, setError] = useState('');
 
   const updateMenuMutation = useUpdateMenuDecision();
@@ -20,23 +23,23 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       setStatus(booking.menu.status || 'Pending');
       setReason(booking.menu.reason || '');
       setRemarks(booking.menu.remarks || '');
-      setFile(null);
+      const existing = Array.isArray(booking.menu.attachments)
+        ? booking.menu.attachments
+        : (booking.menu.attachment ? [booking.menu.attachment] : []);
+      setKeptAttachments(existing);
+      setNewFiles([]);
+      setDeletedPaths([]);
       setError('');
     }
   }, [booking]);
 
   if (!booking) return null;
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        setError('File size must be under 5 MB');
-        return;
-      }
-      setError('');
-      setFile(selected);
+  const handleDeleteExisting = (idx, att) => {
+    if (att?.path) {
+      setDeletedPaths(prev => [...prev, att.path]);
     }
+    setKeptAttachments(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e) => {
@@ -48,24 +51,30 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       return;
     }
 
-    if (status === 'Finalized' && !file && !booking.menu?.attachment) {
-      setError('Please attach the menu document to finalize.');
+    const totalAttachments = (newFiles?.length || 0) + (keptAttachments?.length || 0);
+    if (status === 'Finalized' && totalAttachments === 0) {
+      setError('Please attach at least one menu document (PDF / Image / Video) to finalize.');
       return;
     }
 
-    await updateMenuMutation.mutateAsync({
-      bookingId: booking.id,
-      payload: {
-        status,
-        reason,
-        remarks,
-        attachmentFile: file,
-        existingAttachment: booking.menu?.attachment,
-        bookingData: booking,
-      },
-    });
+    try {
+      await updateMenuMutation.mutateAsync({
+        bookingId: booking.id,
+        payload: {
+          status,
+          reason,
+          remarks,
+          attachmentFiles: newFiles,
+          keptAttachments,
+          deletedPaths,
+          bookingData: booking,
+        },
+      });
 
-    onClose();
+      onClose();
+    } catch (err) {
+      setError(err.message || 'Failed to save menu decision.');
+    }
   };
 
   const statusOptions = [
@@ -83,7 +92,6 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       maxWidth="max-w-3xl"
     >
       <BookingSummary booking={booking} defaultOpenSchedule={true} />
-
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* Status Pills */}
@@ -124,28 +132,18 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
           />
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                <span>Attachment Document <span className="text-red-500 font-bold">*</span></span>
-                <span className="text-[10px] text-slate-400 font-normal">PDF / Image / Doc up to 5MB</span>
-              </label>
-
-              <label className="border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-100/50 hover:border-pms-accent transition-all cursor-pointer flex items-center gap-3">
-                <UploadCloud className="w-6 h-6 text-pms-accent flex-shrink-0" />
-                <div className="flex-1 min-w-0 text-xs">
-                  <input
-                    type="file"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <div className="font-semibold text-slate-900 truncate">
-                    {file ? file.name : (booking.menu?.attachment?.name || 'Click to select menu attachment')}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Upload confirmed menu PDF or image file'}
-                  </div>
-                </div>
-              </label>
+            <div className="pt-1 border-t border-slate-100">
+              <AttachmentUploader
+                label="Menu Document"
+                required={true}
+                maxFiles={1}
+                maxSizeMb={50}
+                newFiles={newFiles}
+                onNewFilesChange={setNewFiles}
+                existingAttachments={keptAttachments}
+                onDeleteExisting={handleDeleteExisting}
+                hint="Upload confirmed menu PDF, image, or doc to attach to WhatsApp notification (up to 50 MB, 1 file)"
+              />
             </div>
 
             <Textarea

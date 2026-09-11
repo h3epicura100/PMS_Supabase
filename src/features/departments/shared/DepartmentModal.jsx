@@ -3,16 +3,19 @@ import { Modal } from '../../../components/common/Modal';
 import { BookingSummary } from '../../../components/shared/BookingSummary';
 import { Textarea } from '../../../components/common/Textarea';
 import { Button } from '../../../components/common/Button';
+import { AttachmentUploader } from '../../../components/common/AttachmentUploader';
 import { departmentService } from './departmentService';
 import { useAuth } from '../../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { UploadCloud, CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2, Clock } from 'lucide-react';
 
 export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMenu }) {
   const [status, setStatus] = useState('Pending');
   const [remarks, setRemarks] = useState('');
-  const [file, setFile] = useState(null);
+  const [newFiles, setNewFiles] = useState([]);
+  const [keptAttachments, setKeptAttachments] = useState([]);
+  const [deletedPaths, setDeletedPaths] = useState([]);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,23 +29,23 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
     if (deptData) {
       setStatus(deptData.status || 'Pending');
       setRemarks(deptData.remarks || '');
-      setFile(null);
+      const existing = Array.isArray(deptData.attachments)
+        ? deptData.attachments
+        : (deptData.attachment ? [deptData.attachment] : []);
+      setKeptAttachments(existing);
+      setNewFiles([]);
+      setDeletedPaths([]);
       setError('');
     }
   }, [deptData, booking]);
 
   if (!booking || !deptConfig) return null;
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files[0];
-    if (selected) {
-      if (selected.size > 5 * 1024 * 1024) {
-        setError('File size must be under 5 MB');
-        return;
-      }
-      setError('');
-      setFile(selected);
+  const handleDeleteExisting = (idx, att) => {
+    if (att?.path) {
+      setDeletedPaths(prev => [...prev, att.path]);
     }
+    setKeptAttachments(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e) => {
@@ -54,8 +57,9 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
       return;
     }
 
-    if (status === 'Complete' && !file && !deptData?.attachment) {
-      setError('Please attach a file to mark this Complete.');
+    const totalAttachments = (newFiles?.length || 0) + (keptAttachments?.length || 0);
+    if (status === 'Complete' && totalAttachments === 0) {
+      setError('Please attach at least one file (photo, video or document) to mark this Complete.');
       return;
     }
 
@@ -64,8 +68,9 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
       await departmentService.updateDeptTask(booking.id, deptKey, {
         status,
         remarks,
-        attachmentFile: file,
-        existingAttachment: deptData?.attachment,
+        attachmentFiles: newFiles,
+        keptAttachments,
+        deletedPaths,
         updatedBy: currentUser?.id || 'admin',
       });
 
@@ -85,7 +90,8 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
       isOpen={isOpen}
       onClose={onClose}
       title={`${deptConfig.label} — ${booking.id}`}
-      subtitle="Update status, remarks and upload task proof."
+      subtitle="Update status, remarks and upload proof of task completion."
+      maxWidth="max-w-2xl"
     >
       <BookingSummary booking={booking} onViewMenu={onViewMenu} />
 
@@ -134,28 +140,18 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
         />
 
         {status === 'Complete' && (
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-              <span>Attachment Proof <span className="text-red-500 font-bold">*</span></span>
-              <span className="text-[10px] text-slate-400 font-normal">Max 5MB</span>
-            </label>
-
-            <label className="border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/50 hover:bg-slate-100/50 hover:border-pms-accent transition-all cursor-pointer flex items-center gap-3">
-              <UploadCloud className="w-6 h-6 text-pms-accent flex-shrink-0" />
-              <div className="flex-1 min-w-0 text-xs">
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <div className="font-semibold text-slate-900 truncate">
-                  {file ? file.name : (deptData?.attachment?.name || 'Click to select task proof attachment')}
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Upload confirmation photo or document'}
-                </div>
-              </div>
-            </label>
+          <div className="pt-1 border-t border-slate-100">
+            <AttachmentUploader
+              label="Attachment Proof (Photos / Videos / Docs)"
+              required={true}
+              maxFiles={10}
+              maxSizeMb={50}
+              newFiles={newFiles}
+              onNewFilesChange={setNewFiles}
+              existingAttachments={keptAttachments}
+              onDeleteExisting={handleDeleteExisting}
+              hint="Upload photos, videos of completed work, or receipts (up to 50 MB each, max 10 files)"
+            />
           </div>
         )}
 

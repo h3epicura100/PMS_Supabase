@@ -21,7 +21,12 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
 
   useEffect(() => {
     if (deptData?.entries) {
-      setEntries(deptData.entries.map(e => ({ ...e })));
+      setEntries(deptData.entries.map(e => ({
+        ...e,
+        attachmentFiles: [],
+        keptAttachments: Array.isArray(e.attachments) ? e.attachments : (e.attachment ? [e.attachment] : []),
+        deletedPaths: [],
+      })));
     } else {
       setEntries([]);
     }
@@ -33,7 +38,15 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
   const handleAddEntry = () => {
     setEntries(prev => [
       ...prev,
-      { vegType: 'Normal', source: 'Local', status: 'Pending', remarks: '' }
+      {
+        vegType: 'Normal',
+        source: 'Local',
+        status: 'Pending',
+        remarks: '',
+        attachmentFiles: [],
+        keptAttachments: [],
+        deletedPaths: [],
+      }
     ]);
   };
 
@@ -59,13 +72,14 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
     }
 
     for (let i = 0; i < entries.length; i++) {
-      const e = entries[i];
-      if (e.status === 'Pending' && !e.remarks?.trim()) {
+      const entry = entries[i];
+      if (entry.status === 'Pending' && !entry.remarks?.trim()) {
         setError(`Item #${i + 1}: Remarks are required while status is Pending.`);
         return;
       }
-      if (e.status === 'Complete' && !e.attachmentFile && !e.attachment) {
-        setError(`Item #${i + 1}: Attachment is required to mark it Complete.`);
+      const totalAtts = (entry.attachmentFiles?.length || 0) + (entry.keptAttachments?.length ?? (Array.isArray(entry.attachments) ? entry.attachments.length : (entry.attachment ? 1 : 0)));
+      if (entry.status === 'Complete' && totalAtts === 0) {
+        setError(`Item #${i + 1}: Attachment proof is required to mark it Complete.`);
         return;
       }
     }
@@ -95,6 +109,7 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
       onClose={onClose}
       title={`Vegetables — ${booking.id}`}
       subtitle="Manage normal and English vegetable requirements."
+      maxWidth="max-w-2xl"
     >
       <BookingSummary booking={booking} onViewMenu={onViewMenu} />
 

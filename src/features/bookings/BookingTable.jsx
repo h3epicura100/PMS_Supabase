@@ -2,9 +2,9 @@ import React from 'react';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { Button } from '../../components/common/Button';
 import { formatDateRangeDisplay, formatDateDisplay } from '../../utils/dateUtils';
-import { Edit2, RotateCcw, Calendar, Users } from 'lucide-react';
+import { Edit2, RotateCcw, Trash2, Calendar, Users } from 'lucide-react';
 
-export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onReopen }) {
+export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onReopen, onDelete }) {
   if (!bookings.length) {
     return (
       <div className="bg-white border border-pms-border rounded-xl p-12 text-center">
@@ -45,7 +45,7 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                   )}
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                   <Button
                     size="sm"
                     variant="ghost"
@@ -56,7 +56,7 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                     <span>Edit</span>
                   </Button>
 
-                  {isHistoryTab && (
+                  {isHistoryTab && onReopen && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -65,6 +65,19 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-pms-accent" />
                       <span>Reopen</span>
+                    </Button>
+                  )}
+
+                  {onDelete && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onDelete(b)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      title="Delete booking permanently"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
                     </Button>
                   )}
                 </div>
@@ -180,7 +193,7 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                         <div className="text-[11px] text-pms-muted truncate max-w-[150px]">{b.venueName}</div>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-medium text-pms-text whitespace-nowrap">
+                    <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
                       <div>{dateRange}</div>
                       {sessionCount > 1 && (
                         <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
@@ -223,7 +236,7 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                           <span>Edit</span>
                         </Button>
 
-                        {isHistoryTab && (
+                        {isHistoryTab && onReopen && (
                           <Button
                             size="sm"
                             variant="ghost"
@@ -232,6 +245,19 @@ export function BookingTable({ bookings = [], isHistoryTab = false, onEdit, onRe
                           >
                             <RotateCcw className="w-3.5 h-3.5 text-pms-accent" />
                             <span>Reopen</span>
+                          </Button>
+                        )}
+
+                        {onDelete && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => onDelete(b)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            title="Delete booking permanently"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
                           </Button>
                         )}
                       </div>

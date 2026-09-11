@@ -5,32 +5,72 @@ import { formatDateRangeDisplay, formatDateTimeDisplay, formatDateDisplay } from
 import { storageService } from '../../services/storageService';
 import { Paperclip, Calendar, CheckCircle2, AlertTriangle, XCircle, MinusCircle, MessageCircle } from 'lucide-react';
 
-function AttachmentCell({ attachment }) {
-  if (!attachment || (!attachment.name && !attachment.path)) {
+function AttachmentCell({ attachments }) {
+  const list = Array.isArray(attachments)
+    ? attachments.filter(a => a && (a.name || a.path))
+    : (attachments && (attachments.name || attachments.path) ? [attachments] : []);
+
+  if (!list.length) {
     return <span className="text-slate-400">—</span>;
   }
 
-  const handleView = async () => {
-    if (attachment.path?.startsWith('data:')) {
-      window.open(attachment.path, '_blank');
-      return;
-    }
-    const url = await storageService.getSignedUrl(attachment.path);
-    if (url) {
-      window.open(url, '_blank');
-    }
-  };
+  if (list.length === 1) {
+    const single = list[0];
+    const handleView = async () => {
+      if (single.path?.startsWith('data:') || single.path?.startsWith('http')) {
+        window.open(single.path, '_blank');
+        return;
+      }
+      const url = await storageService.getSignedUrl(single.path);
+      if (url) {
+        window.open(url, '_blank');
+      }
+    };
+
+    return (
+      <button
+        onClick={handleView}
+        type="button"
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+        title={single.name || 'View Attachment'}
+      >
+        <Paperclip className="w-3.5 h-3.5 text-pms-accent flex-shrink-0" />
+        <span className="max-w-[130px] truncate">{single.name || 'View Attachment'}</span>
+      </button>
+    );
+  }
 
   return (
-    <button
-      onClick={handleView}
-      type="button"
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-      title="View Attachment"
-    >
-      <Paperclip className="w-3.5 h-3.5 text-pms-accent" />
-      <span className="max-w-[130px] truncate">{attachment.name || 'View Attachment'}</span>
-    </button>
+    <div className="flex items-center gap-1 flex-wrap">
+      {list.slice(0, 2).map((att, i) => {
+        const handleView = async (e) => {
+          e.stopPropagation();
+          if (att.path?.startsWith('data:') || att.path?.startsWith('http')) {
+            window.open(att.path, '_blank');
+            return;
+          }
+          const url = await storageService.getSignedUrl(att.path);
+          if (url) window.open(url, '_blank');
+        };
+        return (
+          <button
+            key={att.path || i}
+            onClick={handleView}
+            type="button"
+            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold text-pms-primary bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer"
+            title={att.name || `Attachment #${i + 1}`}
+          >
+            <Paperclip className="w-3 h-3 text-pms-accent flex-shrink-0" />
+            <span className="max-w-[80px] truncate">{att.name || `File ${i + 1}`}</span>
+          </button>
+        );
+      })}
+      {list.length > 2 && (
+        <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+          +{list.length - 2} more
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -102,6 +142,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
           const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
           const sessionCount = b.eventSchedule?.length || 0;
           const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
+          const menuAttachments = Array.isArray(b.menu?.attachments) ? b.menu.attachments : (b.menu?.attachment ? [b.menu.attachment] : []);
 
           return (
             <div
@@ -177,7 +218,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                 <div className="flex items-center justify-between sm:justify-start sm:gap-3 py-1 border-b border-slate-100/80 sm:border-0">
                   <span className="text-[11px] font-semibold uppercase text-slate-400">Attachment:</span>
                   <div>
-                    <AttachmentCell attachment={b.menu?.attachment} />
+                    <AttachmentCell attachments={menuAttachments} />
                   </div>
                 </div>
               </div>
@@ -236,6 +277,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                 const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
                 const sessionCount = b.eventSchedule?.length || 0;
                 const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
+                const menuAttachments = Array.isArray(b.menu?.attachments) ? b.menu.attachments : (b.menu?.attachment ? [b.menu.attachment] : []);
 
                 return (
                   <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
@@ -303,7 +345,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
                       )}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <AttachmentCell attachment={b.menu?.attachment} />
+                      <AttachmentCell attachments={menuAttachments} />
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <WhatsAppStatusCell
@@ -322,4 +364,3 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
     </>
   );
 }
-

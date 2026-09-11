@@ -1,23 +1,43 @@
 import React from 'react';
 import { Textarea } from '../../../components/common/Textarea';
 import { Button } from '../../../components/common/Button';
-import { Trash2, UploadCloud, Package, Clock, CheckCircle2 } from 'lucide-react';
+import { AttachmentUploader } from '../../../components/common/AttachmentUploader';
+import { Trash2, Package, Clock, CheckCircle2 } from 'lucide-react';
 
 export function CheeseDairyEntry({ entry, index, onChange, onRemove }) {
   const handleFieldChange = (field, value) => {
     onChange(index, { ...entry, [field]: value });
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      onChange(index, { ...entry, attachmentFile: file });
-    }
-  };
-
   const itemType = entry.itemType || 'Normal';
   const source = entry.source || 'Local';
   const status = entry.status || 'Pending';
+
+  const existingAttachments = entry.keptAttachments !== undefined
+    ? entry.keptAttachments
+    : (Array.isArray(entry.attachments) ? entry.attachments : (entry.attachment ? [entry.attachment] : []));
+
+  const newFiles = entry.attachmentFiles || [];
+
+  const handleNewFilesChange = (files) => {
+    onChange(index, {
+      ...entry,
+      attachmentFiles: files,
+      keptAttachments: existingAttachments,
+    });
+  };
+
+  const handleDeleteExisting = (idx, att) => {
+    const nextKept = existingAttachments.filter((_, i) => i !== idx);
+    const currDeleted = entry.deletedPaths || [];
+    const nextDeleted = att?.path ? [...currDeleted, att.path] : currDeleted;
+
+    onChange(index, {
+      ...entry,
+      keptAttachments: nextKept,
+      deletedPaths: nextDeleted,
+    });
+  };
 
   return (
     <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-4.5 space-y-4 shadow-sm relative transition-all border-l-4 border-l-pms-accent hover:border-slate-300">
@@ -71,7 +91,7 @@ export function CheeseDairyEntry({ entry, index, onChange, onRemove }) {
           </div>
         </div>
 
-        {/* 2. Source Selector (If English) OR Status Selector */}
+        {/* 2. Source Selector (If English) */}
         {itemType === 'English' ? (
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 block">
@@ -146,27 +166,18 @@ export function CheeseDairyEntry({ entry, index, onChange, onRemove }) {
 
       {/* Attachment Proof Field (when Complete) */}
       {status === 'Complete' && (
-        <div className="flex flex-col gap-1.5 pt-1">
-          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-            <span>Attachment Proof <span className="text-red-500 font-bold">*</span></span>
-            <span className="text-[10px] text-slate-400 font-normal">Photo / Receipt up to 5MB</span>
-          </label>
-          <label className="border-2 border-dashed border-slate-200 rounded-xl p-3 bg-white hover:bg-slate-50 hover:border-pms-accent transition-all cursor-pointer flex items-center gap-3">
-            <UploadCloud className="w-5 h-5 text-pms-accent flex-shrink-0" />
-            <div className="flex-1 min-w-0 text-xs">
-              <input
-                type="file"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div className="font-semibold text-slate-900 truncate">
-                {entry.attachmentFile ? entry.attachmentFile.name : (entry.attachment?.name || 'Click to select receipt or proof photo')}
-              </div>
-              <div className="text-[11px] text-slate-400">
-                {entry.attachmentFile ? `${(entry.attachmentFile.size / 1024 / 1024).toFixed(2)} MB` : 'Upload purchase proof or receipt image'}
-              </div>
-            </div>
-          </label>
+        <div className="pt-2 border-t border-slate-200/80">
+          <AttachmentUploader
+            label="Attachment Proof (Photos / Videos / Receipt)"
+            required={true}
+            maxFiles={10}
+            maxSizeMb={50}
+            newFiles={newFiles}
+            onNewFilesChange={handleNewFilesChange}
+            existingAttachments={existingAttachments}
+            onDeleteExisting={handleDeleteExisting}
+            hint="Upload purchase proof, photo, or video (up to 50 MB each, max 10 files)"
+          />
         </div>
       )}
     </div>

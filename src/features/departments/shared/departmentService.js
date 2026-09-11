@@ -3,16 +3,41 @@ import { storageService } from '../../../services/storageService';
 
 export const departmentService = {
   /**
-   * Updates status, remarks and attachment for simple department tasks strictly in Supabase.
+   * Updates status, remarks and attachments for simple department tasks strictly in Supabase.
+   * @param {string} bookingId
+   * @param {string} deptKey
+   * @param {Object} params
+   * @param {string} params.status
+   * @param {string} params.remarks
+   * @param {File[]} [params.attachmentFiles] - Newly staged local files to upload
+   * @param {Array} [params.keptAttachments] - Retained existing attachment objects
+   * @param {string[]} [params.deletedPaths] - Storage paths to permanently remove
+   * @param {string} params.updatedBy
    */
-  async updateDeptTask(bookingId, deptKey, { status, remarks, attachmentFile, existingAttachment, updatedBy }) {
-    let attachment = existingAttachment || null;
+  async updateDeptTask(bookingId, deptKey, {
+    status,
+    remarks,
+    attachmentFiles = [],
+    keptAttachments = [],
+    deletedPaths = [],
+    updatedBy,
+  }) {
+    let finalAttachments = [...(keptAttachments || [])];
 
-    if (status === 'Complete' && attachmentFile) {
-      const uploaded = await storageService.uploadAttachment(`departments/${bookingId}/${deptKey}`, attachmentFile);
-      if (uploaded) {
-        attachment = uploaded;
+    // Upload new files if any
+    if (attachmentFiles && attachmentFiles.length > 0) {
+      const uploadedList = await storageService.uploadMultipleAttachments(
+        `departments/${bookingId}/${deptKey}`,
+        attachmentFiles
+      );
+      if (uploadedList && uploadedList.length > 0) {
+        finalAttachments = [...finalAttachments, ...uploadedList];
       }
+    }
+
+    // Clean up deleted files from Supabase Storage
+    if (deletedPaths && deletedPaths.length > 0) {
+      await storageService.deleteAttachments(deletedPaths);
     }
 
     const nowIso = new Date().toISOString();
@@ -24,8 +49,7 @@ export const departmentService = {
         department_key: deptKey,
         status,
         remarks,
-        attachment_path: attachment?.path || null,
-        attachment_name: attachment?.name || null,
+        attachments: finalAttachments,
         updated_by: updatedBy,
         updated_at: nowIso,
         completed_at: status === 'Complete' ? nowIso : null,
