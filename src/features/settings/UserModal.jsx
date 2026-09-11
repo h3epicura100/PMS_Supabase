@@ -166,7 +166,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 mt-6">
+        <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 py-3 sm:px-6 sm:py-3.5 bg-white/95 backdrop-blur-xs border-t border-slate-200 flex items-center justify-end gap-3 z-10 mt-6 shadow-xs">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>

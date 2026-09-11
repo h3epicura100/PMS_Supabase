@@ -106,7 +106,7 @@ export function ViewMenuModal({ isOpen, onClose, booking }) {
           </div>
         )}
 
-        <div className="flex justify-end pt-4 border-t border-pms-border mt-6">
+        <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 py-3 sm:px-6 sm:py-3.5 bg-white/95 backdrop-blur-xs border-t border-pms-border flex justify-end z-10 mt-6 shadow-xs">
           <button
             onClick={onClose}
             className="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-pms-text rounded-lg transition-colors cursor-pointer"
