@@ -70,38 +70,38 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Top Tabs */}
-      <div className="flex items-center justify-between border-b border-pms-border pb-4 gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-pms-border pb-4 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2 w-full sm:w-auto">
           <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
               activeTab === 'users'
                 ? 'bg-pms-primary text-white shadow-sm'
                 : 'text-pms-muted hover:bg-slate-100 hover:text-pms-text'
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>User Accounts & Access</span>
-            <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === 'users' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="truncate">User Accounts</span>
+            <span className={`px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full ${activeTab === 'users' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
               {users.length}
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
               activeTab === 'notifications'
                 ? 'bg-pms-primary text-white shadow-sm'
                 : 'text-pms-muted hover:bg-slate-100 hover:text-pms-text'
             }`}
           >
-            <Bell className="w-4 h-4" />
-            <span>Delay & WhatsApp Logs</span>
+            <Bell className="w-4 h-4 shrink-0" />
+            <span className="truncate">Delay & Logs</span>
           </button>
         </div>
 
         {activeTab === 'users' && (
-          <Button variant="primary" onClick={handleOpenNew}>
+          <Button variant="primary" onClick={handleOpenNew} className="w-full sm:w-auto justify-center">
             <Plus className="w-4 h-4" />
             <span>New User</span>
           </Button>
