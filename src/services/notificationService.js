@@ -153,17 +153,22 @@ export const notificationService = {
   },
 
   /**
-   * Extends delay deadline by +24 hours for all existing active bookings
-   * whose event date is AFTER the newly created booking's event date.
+   * Extends delay deadline by +24 hours for existing active bookings
+   * whose event date is AFTER the newly created booking's event date,
+   * ONLY when the new booking is created while that existing booking
+   * is still within its active 48-hour grace window / deadline.
    */
-  async extendDelayForExistingBookings(newEventDate, excludeBookingId = null) {
+  async extendDelayForExistingBookings(newEventDate, excludeBookingId = null, newBookingCreatedAt = null) {
     if (!newEventDate) return 0;
+
+    const referenceTime = newBookingCreatedAt ? new Date(newBookingCreatedAt) : new Date();
 
     try {
       // 1. Try DB RPC first
       const { data: rpcCount, error: rpcErr } = await supabase.rpc('pms_extend_booking_delays', {
         p_new_event_date: newEventDate,
         p_exclude_booking_id: excludeBookingId,
+        p_new_created_at: referenceTime.toISOString(),
       });
 
       if (!rpcErr && typeof rpcCount === 'number') {
@@ -174,7 +179,7 @@ export const notificationService = {
       console.warn('[NotificationService] RPC extension failed, running direct update fallback:', err);
     }
 
-    // Direct fallback if RPC is not installed in database yet
+    // Direct fallback with 48h active deadline guard
     try {
       const { data: laterBookings, error } = await supabase
         .from('pms_bookings')
@@ -188,11 +193,18 @@ export const notificationService = {
       for (const bk of laterBookings) {
         if (excludeBookingId && bk.id === excludeBookingId) continue;
 
-        const currentBase = bk.delay_deadline_override
+        // Current active deadline
+        const currentDeadline = bk.delay_deadline_override
           ? new Date(bk.delay_deadline_override)
           : new Date(new Date(bk.created_at).getTime() + 48 * 60 * 60 * 1000);
 
-        const newDeadline = new Date(currentBase.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        // ONLY extend if the new booking was created while this existing booking is still within its active deadline window
+        if (referenceTime.getTime() > currentDeadline.getTime()) {
+          console.log(`[NotificationService] Skipping extension for ${bk.id}: 48h deadline expired before new booking creation.`);
+          continue;
+        }
+
+        const newDeadline = new Date(currentDeadline.getTime() + 24 * 60 * 60 * 1000).toISOString();
 
         await supabase
           .from('pms_bookings')

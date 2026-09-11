@@ -191,9 +191,10 @@ export const bookingService = {
     }
 
     // Priority Extension Rule: extend delay deadline by +24hrs for any existing active bookings with later event date
+    // ONLY if the new booking is created while that existing booking is still within its active 48hr window
     const targetEventDate = bookingData.eventStartDate || bookingData.eventEndDate;
     if (targetEventDate) {
-      notificationService.extendDelayForExistingBookings(targetEventDate, data).catch((e) => {
+      notificationService.extendDelayForExistingBookings(targetEventDate, data, new Date().toISOString()).catch((e) => {
         console.warn('Priority extension background job error:', e);
       });
     }
