@@ -126,15 +126,22 @@ export function MastersPage() {
     }
   };
 
-  const currentItems = activeTab === 'functionTypes' ? functionTypes : eventTimes;
+  const currentItems = Array.isArray(activeTab === 'functionTypes' ? functionTypes : eventTimes)
+    ? (activeTab === 'functionTypes' ? functionTypes : eventTimes)
+    : [];
 
-  const filteredItems = currentItems.filter(item =>
-    item.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredItems = currentItems.filter((item) => {
+    if (!item) return false;
+    const nameStr = String(item.name || (typeof item === 'string' ? item : '')).trim();
+    if (!nameStr) return false;
+    const term = String(search || '').trim().toLowerCase();
+    if (!term) return true;
+    return nameStr.toLowerCase().includes(term);
+  });
 
   const tabs = [
-    { key: 'functionTypes', label: 'Function Types', icon: Calendar, count: functionTypes.length },
-    { key: 'eventTimes', label: 'Event Times', icon: Clock, count: eventTimes.length },
+    { key: 'functionTypes', label: 'Function Types', icon: Calendar, count: Array.isArray(functionTypes) ? functionTypes.length : 0 },
+    { key: 'eventTimes', label: 'Event Times', icon: Clock, count: Array.isArray(eventTimes) ? eventTimes.length : 0 },
   ];
 
   return (
@@ -308,7 +315,7 @@ export function MastersPage() {
             </div>
           )}
 
-          <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 py-3 sm:px-6 sm:py-3.5 bg-white/95 backdrop-blur-xs border-t border-slate-200 flex items-center justify-end gap-3 z-10 mt-6 shadow-xs">
+          <div className="pt-4 sm:pt-5 border-t border-slate-200 flex items-center justify-end gap-3 mt-6">
             <Button type="button" variant="ghost" onClick={closeModal}>
               Cancel
             </Button>
