@@ -4,7 +4,7 @@ import { Button } from '../../../components/common/Button';
 import { AttachmentUploader } from '../../../components/common/AttachmentUploader';
 import { Trash2, Leaf, Clock, CheckCircle2 } from 'lucide-react';
 
-export function VegetableEntry({ entry, index, onChange, onRemove }) {
+export function VegetableEntry({ entry, index, bookingId, onChange, onRemove }) {
   const handleFieldChange = (field, value) => {
     onChange(index, { ...entry, [field]: value });
   };
@@ -12,6 +12,7 @@ export function VegetableEntry({ entry, index, onChange, onRemove }) {
   const vegType = entry.vegType || 'Normal';
   const source = entry.source || 'Local';
   const status = entry.status || 'Pending';
+  const sessionKey = bookingId ? (entry.id ? `veg_${bookingId}_${entry.id}` : `veg_${bookingId}_idx_${index}`) : null;
 
   const existingAttachments = entry.keptAttachments !== undefined
     ? entry.keptAttachments
@@ -169,6 +170,7 @@ export function VegetableEntry({ entry, index, onChange, onRemove }) {
         <div className="pt-2 border-t border-slate-200/80">
           <AttachmentUploader
             label="Attachment Proof (Photos / Videos / Receipt)"
+            sessionKey={sessionKey}
             required={true}
             maxFiles={10}
             maxSizeMb={50}

@@ -1,5 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { storageService } from '../../services/storageService';
+import {
+  saveFilesToSession,
+  restoreFilesFromSession,
+  clearFilesFromSession,
+} from '../../utils/fileSessionStore';
 import {
   UploadCloud,
   FileText,
@@ -9,6 +14,7 @@ import {
   X,
   ExternalLink,
   AlertCircle,
+  Eye,
   Film
 } from 'lucide-react';
 
@@ -47,10 +53,11 @@ function FileTypeIcon({ category, className = 'w-4 h-4' }) {
 
 export function AttachmentUploader({
   label = 'Attachments',
+  sessionKey = null,
   required = false,
   maxFiles = 10,
   maxSizeMb = 50,
-  accept = 'image/*,video/mp4,video/quicktime,video/webm,video/x-matroska,application/pdf,.doc,.docx,.xls,.xlsx,.csv',
+  accept = 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv',
   newFiles = [],
   onNewFilesChange,
   existingAttachments = [],
@@ -60,13 +67,63 @@ export function AttachmentUploader({
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [previewMedia, setPreviewMedia] = useState(null); // { url, type, title }
   const fileInputRef = useRef(null);
+  const generatedId = useId();
+  const inputId = `file_input_${sessionKey || generatedId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+  const effectiveKey = sessionKey || `pms_att_${label.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const maxSizeBytes = maxSizeMb * 1024 * 1024;
   const currentTotal = (existingAttachments?.length || 0) + (newFiles?.length || 0);
   const isLimitReached = currentTotal >= maxFiles;
 
-  const handleFilesAdded = (incomingList) => {
+  // Restore staged files from IndexedDB on initial mount (especially if page reloaded on mobile)
+  useEffect(() => {
+    let isMounted = true;
+    async function restoreStagedFiles() {
+      if (!effectiveKey) return;
+      try {
+        const savedFiles = await restoreFilesFromSession(effectiveKey);
+        if (isMounted && savedFiles && savedFiles.length > 0 && newFiles.length === 0) {
+          if (onNewFilesChange) {
+            onNewFilesChange(savedFiles);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not restore staged files from IndexedDB:', err);
+      }
+    }
+
+    restoreStagedFiles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [effectiveKey]);
+
+  // Sync with visibility changes (when returning from mobile camera/gallery picker)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && effectiveKey && newFiles.length === 0) {
+        try {
+          const savedFiles = await restoreFilesFromSession(effectiveKey);
+          if (savedFiles && savedFiles.length > 0 && onNewFilesChange) {
+            onNewFilesChange(savedFiles);
+          }
+        } catch (err) {
+          console.warn('Visibility restoration error:', err);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [effectiveKey, newFiles.length, onNewFilesChange]);
+
+  const handleFilesAdded = async (incomingList) => {
     setLocalError('');
     if (!incomingList || !incomingList.length) return;
 
@@ -100,8 +157,15 @@ export function AttachmentUploader({
       setLocalError(`Maximum ${maxFiles} attachments allowed in total.`);
     }
 
-    if (validNewFiles.length > 0 && onNewFilesChange) {
-      onNewFilesChange([...newFiles, ...validNewFiles]);
+    if (validNewFiles.length > 0) {
+      const updatedList = [...newFiles, ...validNewFiles];
+      if (onNewFilesChange) {
+        onNewFilesChange(updatedList);
+      }
+      // Persist immediately to IndexedDB
+      if (effectiveKey) {
+        await saveFilesToSession(effectiveKey, updatedList);
+      }
     }
   };
 
@@ -126,17 +190,36 @@ export function AttachmentUploader({
 
   const handleInputChange = (e) => {
     const files = Array.from(e.target.files || []);
-    handleFilesAdded(files);
+    if (files.length > 0) {
+      handleFilesAdded(files);
+    }
     // Reset file input value so selecting the same file again works
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveNewFile = (idx) => {
+  const handleRemoveNewFile = async (idx) => {
     if (!onNewFilesChange) return;
     const updated = newFiles.filter((_, i) => i !== idx);
     onNewFilesChange(updated);
+    if (effectiveKey) {
+      await saveFilesToSession(effectiveKey, updated);
+    }
+  };
+
+  const handlePreviewNewFile = (file) => {
+    const cat = getFileCategory(file);
+    const objectUrl = URL.createObjectURL(file);
+    if (cat === 'image' || cat === 'video') {
+      setPreviewMedia({
+        url: objectUrl,
+        type: cat,
+        title: file.name,
+      });
+    } else {
+      window.open(objectUrl, '_blank');
+    }
   };
 
   const handleViewExisting = async (att) => {
@@ -175,24 +258,24 @@ export function AttachmentUploader({
         </span>
       </div>
 
-      {/* Drag and Drop Zone */}
+      {/* Drag and Drop Zone / Mobile File Trigger */}
       {!disabled && !isLimitReached && (
-        <div
+        <label
+          htmlFor={inputId}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          className={`border-2 border-dashed rounded-xl p-4 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left ${
+          className={`border-2 border-dashed rounded-xl p-4 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left select-none ${
             isDragging
               ? 'border-pms-accent bg-blue-50/70 ring-4 ring-pms-accent/15'
-              : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/60 hover:border-pms-accent/70'
+              : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/60 hover:border-pms-accent/70 active:bg-blue-50/30'
           }`}
         >
-          <div className="w-10 h-10 rounded-full bg-blue-100 text-pms-primary flex items-center justify-center flex-shrink-0 shadow-xs">
+          <div className="w-10 h-10 rounded-full bg-blue-100 text-pms-primary flex items-center justify-center flex-shrink-0 shadow-xs pointer-events-none">
             <UploadCloud className="w-5 h-5 text-pms-accent" />
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pointer-events-none">
             <div className="text-xs font-semibold text-slate-800">
               <span className="text-pms-accent hover:underline">Click to browse</span> or drag & drop {maxFiles === 1 ? 'file' : 'files'}
             </div>
@@ -202,15 +285,16 @@ export function AttachmentUploader({
           </div>
 
           <input
+            id={inputId}
             ref={fileInputRef}
             type="file"
             multiple={maxFiles > 1}
             accept={accept}
             onChange={handleInputChange}
-            className="hidden"
+            className="sr-only"
             disabled={disabled}
           />
-        </div>
+        </label>
       )}
 
       {/* Limit Reached Banner */}
@@ -316,20 +400,74 @@ export function AttachmentUploader({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveNewFile(idx)}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded cursor-pointer transition-colors flex-shrink-0"
-                        title="Remove file"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {(cat === 'image' || cat === 'video') && (
+                          <button
+                            type="button"
+                            onClick={() => handlePreviewNewFile(file)}
+                            className="p-1 text-slate-500 hover:text-pms-accent hover:bg-white rounded cursor-pointer transition-colors"
+                            title="Preview media"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveNewFile(idx)}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded cursor-pointer transition-colors"
+                          title="Remove file"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Media Preview Modal */}
+      {previewMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative bg-slate-900 rounded-2xl max-w-2xl w-full p-4 overflow-hidden shadow-2xl border border-slate-700">
+            <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-700 text-white">
+              <span className="text-xs font-semibold truncate flex items-center gap-2">
+                {previewMedia.type === 'video' ? <Film className="w-4 h-4 text-indigo-400" /> : <ImageIcon className="w-4 h-4 text-emerald-400" />}
+                {previewMedia.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  URL.revokeObjectURL(previewMedia.url);
+                  setPreviewMedia(null);
+                }}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-center bg-black/50 rounded-xl overflow-hidden max-h-[70vh]">
+              {previewMedia.type === 'video' ? (
+                <video
+                  src={previewMedia.url}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[65vh] w-full rounded-lg"
+                />
+              ) : (
+                <img
+                  src={previewMedia.url}
+                  alt={previewMedia.title}
+                  className="max-h-[65vh] object-contain rounded-lg"
+                />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

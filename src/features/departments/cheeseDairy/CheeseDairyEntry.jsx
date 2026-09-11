@@ -4,7 +4,7 @@ import { Button } from '../../../components/common/Button';
 import { AttachmentUploader } from '../../../components/common/AttachmentUploader';
 import { Trash2, Package, Clock, CheckCircle2 } from 'lucide-react';
 
-export function CheeseDairyEntry({ entry, index, onChange, onRemove }) {
+export function CheeseDairyEntry({ entry, index, bookingId, onChange, onRemove }) {
   const handleFieldChange = (field, value) => {
     onChange(index, { ...entry, [field]: value });
   };
@@ -12,6 +12,7 @@ export function CheeseDairyEntry({ entry, index, onChange, onRemove }) {
   const itemType = entry.itemType || 'Normal';
   const source = entry.source || 'Local';
   const status = entry.status || 'Pending';
+  const sessionKey = bookingId ? (entry.id ? `cheese_${bookingId}_${entry.id}` : `cheese_${bookingId}_idx_${index}`) : null;
 
   const existingAttachments = entry.keptAttachments !== undefined
     ? entry.keptAttachments
@@ -169,6 +170,7 @@ export function CheeseDairyEntry({ entry, index, onChange, onRemove }) {
         <div className="pt-2 border-t border-slate-200/80">
           <AttachmentUploader
             label="Attachment Proof (Photos / Videos / Receipt)"
+            sessionKey={sessionKey}
             required={true}
             maxFiles={10}
             maxSizeMb={50}

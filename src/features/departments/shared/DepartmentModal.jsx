@@ -4,6 +4,7 @@ import { BookingSummary } from '../../../components/shared/BookingSummary';
 import { Textarea } from '../../../components/common/Textarea';
 import { Button } from '../../../components/common/Button';
 import { AttachmentUploader } from '../../../components/common/AttachmentUploader';
+import { clearFilesFromSession } from '../../../utils/fileSessionStore';
 import { departmentService } from './departmentService';
 import { useAuth } from '../../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,6 +25,7 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
 
   const deptKey = deptConfig?.key;
   const deptData = booking?.departments?.[deptKey];
+  const sessionKey = booking?.id && deptKey ? `dept_${deptKey}_${booking.id}` : null;
 
   useEffect(() => {
     if (deptData) {
@@ -46,6 +48,13 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
       setDeletedPaths(prev => [...prev, att.path]);
     }
     setKeptAttachments(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleClose = () => {
+    if (sessionKey) {
+      clearFilesFromSession(sessionKey);
+    }
+    onClose();
   };
 
   const handleSubmit = async (e) => {
@@ -74,6 +83,10 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
         updatedBy: currentUser?.id || 'admin',
       });
 
+      if (sessionKey) {
+        clearFilesFromSession(sessionKey);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['pms_bookings'] });
       queryClient.invalidateQueries({ queryKey: ['pms_dashboard'] });
       toast.success(`${deptConfig.label} status updated!`);
@@ -88,7 +101,7 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={`${deptConfig.label} — ${booking.id}`}
       subtitle="Update status, remarks and upload proof of task completion."
       maxWidth="max-w-2xl"
@@ -143,6 +156,7 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
           <div className="pt-1 border-t border-slate-100">
             <AttachmentUploader
               label="Attachment Proof (Photos / Videos / Docs)"
+              sessionKey={sessionKey}
               required={true}
               maxFiles={10}
               maxSizeMb={50}
@@ -163,7 +177,7 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
         )}
 
         <div className="pt-4 sm:pt-5 border-t border-slate-200 flex items-center justify-end gap-3 mt-6">
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>

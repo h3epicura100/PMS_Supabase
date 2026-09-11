@@ -3,6 +3,7 @@ import { Modal } from '../../../components/common/Modal';
 import { BookingSummary } from '../../../components/shared/BookingSummary';
 import { CheeseDairyEntry } from './CheeseDairyEntry';
 import { Button } from '../../../components/common/Button';
+import { clearFilesFromSession } from '../../../utils/fileSessionStore';
 import { cheeseDairyService } from './cheeseDairyService';
 import { useAuth } from '../../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -35,6 +36,15 @@ export function CheeseDairyModal({ isOpen, onClose, booking, onViewMenu }) {
 
   if (!booking) return null;
 
+  const handleClose = () => {
+    // Clear all entry session keys
+    entries.forEach((entry, idx) => {
+      const sKey = entry.id ? `cheese_${booking.id}_${entry.id}` : `cheese_${booking.id}_idx_${idx}`;
+      clearFilesFromSession(sKey);
+    });
+    onClose();
+  };
+
   const handleAddEntry = () => {
     setEntries(prev => [
       ...prev,
@@ -59,6 +69,11 @@ export function CheeseDairyModal({ isOpen, onClose, booking, onViewMenu }) {
   };
 
   const handleRemoveEntry = (index) => {
+    const entry = entries[index];
+    if (entry) {
+      const sKey = entry.id ? `cheese_${booking.id}_${entry.id}` : `cheese_${booking.id}_idx_${index}`;
+      clearFilesFromSession(sKey);
+    }
     setEntries(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -92,6 +107,12 @@ export function CheeseDairyModal({ isOpen, onClose, booking, onViewMenu }) {
         currentUser?.id || 'admin'
       );
 
+      // Clear all entry session keys
+      entries.forEach((entry, idx) => {
+        const sKey = entry.id ? `cheese_${booking.id}_${entry.id}` : `cheese_${booking.id}_idx_${idx}`;
+        clearFilesFromSession(sKey);
+      });
+
       queryClient.invalidateQueries({ queryKey: ['pms_bookings'] });
       queryClient.invalidateQueries({ queryKey: ['pms_dashboard'] });
       toast.success('Cheese & Dairy Products entries saved successfully!');
@@ -106,7 +127,7 @@ export function CheeseDairyModal({ isOpen, onClose, booking, onViewMenu }) {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={`Cheese & Dairy Products — ${booking.id}`}
       subtitle="Manage normal and English cheese/dairy requirements."
       maxWidth="max-w-2xl"
@@ -120,6 +141,7 @@ export function CheeseDairyModal({ isOpen, onClose, booking, onViewMenu }) {
               key={idx}
               entry={entry}
               index={idx}
+              bookingId={booking.id}
               onChange={handleEntryChange}
               onRemove={handleRemoveEntry}
             />
@@ -149,7 +171,7 @@ export function CheeseDairyModal({ isOpen, onClose, booking, onViewMenu }) {
         )}
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 mt-6">
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>

@@ -4,6 +4,7 @@ import { BookingSummary } from '../../components/shared/BookingSummary';
 import { Textarea } from '../../components/common/Textarea';
 import { Button } from '../../components/common/Button';
 import { AttachmentUploader } from '../../components/common/AttachmentUploader';
+import { clearFilesFromSession } from '../../utils/fileSessionStore';
 import { useUpdateMenuDecision } from './menuHooks';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 
@@ -17,6 +18,7 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
   const [error, setError] = useState('');
 
   const updateMenuMutation = useUpdateMenuDecision();
+  const sessionKey = booking?.id ? `menu_${booking.id}` : null;
 
   useEffect(() => {
     if (booking?.menu) {
@@ -40,6 +42,13 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       setDeletedPaths(prev => [...prev, att.path]);
     }
     setKeptAttachments(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleClose = () => {
+    if (sessionKey) {
+      clearFilesFromSession(sessionKey);
+    }
+    onClose();
   };
 
   const handleSubmit = async (e) => {
@@ -71,6 +80,10 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
         },
       });
 
+      if (sessionKey) {
+        clearFilesFromSession(sessionKey);
+      }
+
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to save menu decision.');
@@ -86,7 +99,7 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={`Menu Decision — ${booking.id}`}
       subtitle="Lock or reject the menu for this booking."
       maxWidth="max-w-3xl"
@@ -135,6 +148,7 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
             <div className="pt-1 border-t border-slate-100">
               <AttachmentUploader
                 label="Menu Document"
+                sessionKey={sessionKey}
                 required={true}
                 maxFiles={1}
                 maxSizeMb={50}
@@ -164,7 +178,7 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
         )}
 
         <div className="pt-4 sm:pt-5 border-t border-slate-200 flex items-center justify-end gap-3 mt-6">
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
           <Button type="submit" variant="primary" disabled={updateMenuMutation.isPending}>
