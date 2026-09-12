@@ -27,33 +27,39 @@ export function EventScheduleTable({ schedule = [], showTotal = true, className 
   const totalPax = normalized.reduce((sum, item) => sum + (item.guestCount || 0), 0);
 
   return (
-    <div className={`border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs ${className}`}>
-      <table className="w-full text-left text-xs">
+    <div className={`border border-slate-200 rounded-xl overflow-x-auto bg-white shadow-2xs ${className}`}>
+      <table className="w-full text-left text-xs border-collapse">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            <th className="py-2.5 px-3.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-pms-accent" />
-              <span>Date</span>
+            <th className="py-2 px-2.5 sm:px-3.5 whitespace-nowrap">
+              <div className="inline-flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-pms-accent flex-shrink-0" />
+                <span>Date</span>
+              </div>
             </th>
-            <th className="py-2.5 px-3.5">Session / Time Label</th>
-            <th className="py-2.5 px-3.5 text-right flex items-center justify-end gap-1.5">
-              <Users className="w-3.5 h-3.5 text-pms-accent" />
-              <span>Guest Count</span>
+            <th className="py-2 px-2 sm:px-3">
+              <span>Session / Time</span>
+            </th>
+            <th className="py-2 px-2.5 sm:px-3.5 text-right whitespace-nowrap">
+              <div className="inline-flex items-center justify-end gap-1">
+                <Users className="w-3 h-3 text-pms-accent flex-shrink-0" />
+                <span>Guest Count</span>
+              </div>
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {normalized.map((item, idx) => (
             <tr key={item.id || idx} className="hover:bg-slate-50/70 transition-colors">
-              <td className="py-2.5 px-3.5 font-medium whitespace-nowrap">
-                <span className="font-semibold text-pms-primary">
+              <td className="py-2 px-2.5 sm:px-3.5 font-medium whitespace-nowrap">
+                <span className="font-semibold text-pms-primary text-[11px] sm:text-xs">
                   {formatDateDisplay(item.date)}
                 </span>
               </td>
-              <td className="py-2.5 px-3.5 font-medium text-slate-700">
+              <td className="py-2 px-2 sm:px-3 font-medium text-slate-700 text-[11px] sm:text-xs">
                 {item.timeLabel}
               </td>
-              <td className="py-2.5 px-3.5 text-right font-mono font-bold text-slate-900">
+              <td className="py-2 px-2.5 sm:px-3.5 text-right font-mono font-bold text-slate-900 text-[11px] sm:text-xs whitespace-nowrap">
                 {item.guestCount.toLocaleString()}
               </td>
             </tr>
@@ -62,10 +68,10 @@ export function EventScheduleTable({ schedule = [], showTotal = true, className 
         {showTotal && (
           <tfoot>
             <tr className="bg-slate-50/90 border-t border-slate-200 font-bold text-xs text-slate-800">
-              <td colSpan={2} className="py-2.5 px-3.5 text-right uppercase tracking-wider text-[11px] text-slate-500">
+              <td colSpan={2} className="py-2 px-2.5 sm:px-3.5 text-right uppercase tracking-wider text-[10px] sm:text-[11px] text-slate-500">
                 Total Guest Count:
               </td>
-              <td className="py-2.5 px-3.5 text-right font-mono text-sm text-pms-primary">
+              <td className="py-2 px-2.5 sm:px-3.5 text-right font-mono text-xs sm:text-sm text-pms-primary whitespace-nowrap">
                 {totalPax.toLocaleString()}
               </td>
             </tr>
