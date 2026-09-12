@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../../components/common/Modal';
 import { BookingSummary } from '../../components/shared/BookingSummary';
 import { Textarea } from '../../components/common/Textarea';
 import { Button } from '../../components/common/Button';
 import { AttachmentUploader } from '../../components/common/AttachmentUploader';
-import { clearFilesFromSession } from '../../utils/fileSessionStore';
+import { storageService } from '../../services/storageService';
 import { useUpdateMenuDecision } from './menuHooks';
 import { CheckCircle2, Clock, XCircle } from 'lucide-react';
 
@@ -12,13 +12,14 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
   const [status, setStatus] = useState('Pending');
   const [reason, setReason] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [newFiles, setNewFiles] = useState([]);
-  const [keptAttachments, setKeptAttachments] = useState([]);
+  const [attachments, setAttachments] = useState([]);
   const [deletedPaths, setDeletedPaths] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
 
+  const initialPathsRef = useRef([]);
   const updateMenuMutation = useUpdateMenuDecision();
-  const sessionKey = booking?.id ? `menu_${booking.id}` : null;
+  const folderPath = booking?.id ? `menu/${booking.id}` : 'menu';
 
   useEffect(() => {
     if (booking?.menu) {
@@ -28,8 +29,8 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       const existing = Array.isArray(booking.menu.attachments)
         ? booking.menu.attachments
         : (booking.menu.attachment ? [booking.menu.attachment] : []);
-      setKeptAttachments(existing);
-      setNewFiles([]);
+      setAttachments(existing);
+      initialPathsRef.current = existing.map(a => a.path).filter(Boolean);
       setDeletedPaths([]);
       setError('');
     }
@@ -37,16 +38,33 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
 
   if (!booking) return null;
 
-  const handleDeleteExisting = (idx, att) => {
-    if (att?.path) {
-      setDeletedPaths(prev => [...prev, att.path]);
+  const handleAddAttachment = (newAtt) => {
+    if (!newAtt) return;
+    setAttachments(prev => [...prev, newAtt]);
+  };
+
+  const handleDeleteAttachment = async (idx, att) => {
+    if (!att) return;
+    const isInitial = initialPathsRef.current.includes(att.path);
+    if (isInitial) {
+      if (att.path) {
+        setDeletedPaths(prev => [...prev, att.path]);
+      }
+    } else {
+      if (att.path) {
+        await storageService.deleteAttachment(att.path);
+      }
     }
-    setKeptAttachments(prev => prev.filter((_, i) => i !== idx));
+    setAttachments(prev => prev.filter((_, i) => i !== idx));
   };
 
   const handleClose = () => {
-    if (sessionKey) {
-      clearFilesFromSession(sessionKey);
+    const draftPaths = attachments
+      .filter(a => a.path && !initialPathsRef.current.includes(a.path))
+      .map(a => a.path);
+
+    if (draftPaths.length > 0) {
+      storageService.deleteAttachments(draftPaths);
     }
     onClose();
   };
@@ -60,9 +78,13 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       return;
     }
 
-    const totalAttachments = (newFiles?.length || 0) + (keptAttachments?.length || 0);
-    if (status === 'Finalized' && totalAttachments === 0) {
+    if (status === 'Finalized' && attachments.length === 0) {
       setError('Please attach at least one menu document (PDF / Image / Video) to finalize.');
+      return;
+    }
+
+    if (isUploading) {
+      setError('Please wait for file upload to complete before saving.');
       return;
     }
 
@@ -73,17 +95,14 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
           status,
           reason,
           remarks,
-          attachmentFiles: newFiles,
-          keptAttachments,
+          attachments,
           deletedPaths,
           bookingData: booking,
         },
       });
 
-      if (sessionKey) {
-        clearFilesFromSession(sessionKey);
-      }
-
+      initialPathsRef.current = attachments.map(a => a.path).filter(Boolean);
+      setDeletedPaths([]);
       onClose();
     } catch (err) {
       setError(err.message || 'Failed to save menu decision.');
@@ -104,15 +123,15 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
       subtitle="Lock or reject the menu for this booking."
       maxWidth="max-w-3xl"
     >
-      <BookingSummary booking={booking} defaultOpenSchedule={true} />
+      <BookingSummary booking={booking} defaultOpenSchedule={false} />
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
         {/* Status Pills */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-slate-700 block">
             Select Menu Status <span className="text-red-500 font-bold">*</span>
           </label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             {statusOptions.map((opt) => {
               const IconComp = opt.icon;
               const isSelected = status === opt.key;
@@ -121,7 +140,7 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
                   type="button"
                   key={opt.key}
                   onClick={() => setStatus(opt.key)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all text-xs font-semibold cursor-pointer gap-1.5 ${
+                  className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-xl border transition-all text-xs font-semibold cursor-pointer gap-1 sm:gap-1.5 ${
                     isSelected
                       ? `${opt.activeBorder} shadow-sm ring-2 ring-pms-accent/20`
                       : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
@@ -144,18 +163,18 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
             onChange={(e) => setReason(e.target.value)}
           />
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             <div className="pt-1 border-t border-slate-100">
               <AttachmentUploader
                 label="Menu Document"
-                sessionKey={sessionKey}
+                folderPath={folderPath}
                 required={true}
                 maxFiles={1}
                 maxSizeMb={50}
-                newFiles={newFiles}
-                onNewFilesChange={setNewFiles}
-                existingAttachments={keptAttachments}
-                onDeleteExisting={handleDeleteExisting}
+                attachments={attachments}
+                onAddAttachment={handleAddAttachment}
+                onDeleteAttachment={handleDeleteAttachment}
+                onUploadingChange={setIsUploading}
                 hint="Upload confirmed menu PDF, image, or doc to attach to WhatsApp notification (up to 50 MB, 1 file)"
               />
             </div>
@@ -171,18 +190,23 @@ export function MenuDecisionModal({ isOpen, onClose, booking }) {
         )}
 
         {error && (
-          <div className="text-xs font-medium text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 flex items-center gap-2">
+          <div className="text-xs font-medium text-red-600 bg-red-50 p-2.5 sm:p-3 rounded-xl border border-red-200 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="pt-4 sm:pt-5 border-t border-slate-200 flex items-center justify-end gap-3 mt-6">
+        {/* Sticky Action Footer */}
+        <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 pb-1 border-t border-slate-100 flex items-center justify-end gap-3 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6">
           <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" disabled={updateMenuMutation.isPending}>
-            {updateMenuMutation.isPending ? 'Saving...' : 'Save Decision'}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={updateMenuMutation.isPending || isUploading}
+          >
+            {updateMenuMutation.isPending ? 'Saving...' : isUploading ? 'Uploading...' : 'Save Decision'}
           </Button>
         </div>
       </form>

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '../../../components/common/Modal';
 import { BookingSummary } from '../../../components/shared/BookingSummary';
 import { VegetableEntry } from './VegetableEntry';
 import { Button } from '../../../components/common/Button';
-import { clearFilesFromSession } from '../../../utils/fileSessionStore';
 import { vegetablesService } from './vegetablesService';
+import { storageService } from '../../../services/storageService';
 import { useAuth } from '../../../hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const initialPathsRef = useRef([]);
   const { currentUser } = useAuth();
   const queryClient = useQueryClient();
 
@@ -22,14 +23,23 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
 
   useEffect(() => {
     if (deptData?.entries) {
-      setEntries(deptData.entries.map(e => ({
+      const loadedEntries = deptData.entries.map(e => ({
         ...e,
-        attachmentFiles: [],
-        keptAttachments: Array.isArray(e.attachments) ? e.attachments : (e.attachment ? [e.attachment] : []),
+        attachments: Array.isArray(e.attachments) ? e.attachments : (e.attachment ? [e.attachment] : []),
         deletedPaths: [],
-      })));
+      }));
+      setEntries(loadedEntries);
+
+      const allInitPaths = [];
+      loadedEntries.forEach(e => {
+        (e.attachments || []).forEach(a => {
+          if (a.path) allInitPaths.push(a.path);
+        });
+      });
+      initialPathsRef.current = allInitPaths;
     } else {
       setEntries([]);
+      initialPathsRef.current = [];
     }
     setError('');
   }, [deptData, booking]);
@@ -37,11 +47,18 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
   if (!booking) return null;
 
   const handleClose = () => {
-    // Clear all entry session keys
-    entries.forEach((entry, idx) => {
-      const sKey = entry.id ? `veg_${booking.id}_${entry.id}` : `veg_${booking.id}_idx_${idx}`;
-      clearFilesFromSession(sKey);
+    // Delete uncommitted draft attachments
+    const currentPaths = [];
+    entries.forEach(e => {
+      (e.attachments || []).forEach(a => {
+        if (a.path) currentPaths.push(a.path);
+      });
     });
+
+    const draftPaths = currentPaths.filter(p => !initialPathsRef.current.includes(p));
+    if (draftPaths.length > 0) {
+      storageService.deleteAttachments(draftPaths);
+    }
     onClose();
   };
 
@@ -53,8 +70,7 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
         source: 'Local',
         status: 'Pending',
         remarks: '',
-        attachmentFiles: [],
-        keptAttachments: [],
+        attachments: [],
         deletedPaths: [],
       }
     ]);
@@ -70,9 +86,14 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
 
   const handleRemoveEntry = (index) => {
     const entry = entries[index];
-    if (entry) {
-      const sKey = entry.id ? `veg_${booking.id}_${entry.id}` : `veg_${booking.id}_idx_${index}`;
-      clearFilesFromSession(sKey);
+    if (entry && entry.attachments) {
+      // Clean up any drafts in the removed entry
+      const draftPaths = entry.attachments
+        .filter(a => a.path && !initialPathsRef.current.includes(a.path))
+        .map(a => a.path);
+      if (draftPaths.length > 0) {
+        storageService.deleteAttachments(draftPaths);
+      }
     }
     setEntries(prev => prev.filter((_, i) => i !== index));
   };
@@ -92,7 +113,7 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
         setError(`Item #${i + 1}: Remarks are required while status is Pending.`);
         return;
       }
-      const totalAtts = (entry.attachmentFiles?.length || 0) + (entry.keptAttachments?.length ?? (Array.isArray(entry.attachments) ? entry.attachments.length : (entry.attachment ? 1 : 0)));
+      const totalAtts = (entry.attachments?.length || 0);
       if (entry.status === 'Complete' && totalAtts === 0) {
         setError(`Item #${i + 1}: Attachment proof is required to mark it Complete.`);
         return;
@@ -107,11 +128,13 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
         currentUser?.id || 'admin'
       );
 
-      // Clear all entry session keys
-      entries.forEach((entry, idx) => {
-        const sKey = entry.id ? `veg_${booking.id}_${entry.id}` : `veg_${booking.id}_idx_${idx}`;
-        clearFilesFromSession(sKey);
+      const allSavedPaths = [];
+      entries.forEach(e => {
+        (e.attachments || []).forEach(a => {
+          if (a.path) allSavedPaths.push(a.path);
+        });
       });
+      initialPathsRef.current = allSavedPaths;
 
       queryClient.invalidateQueries({ queryKey: ['pms_bookings'] });
       queryClient.invalidateQueries({ queryKey: ['pms_dashboard'] });
@@ -132,23 +155,24 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
       subtitle="Manage normal and English vegetable requirements."
       maxWidth="max-w-2xl"
     >
-      <BookingSummary booking={booking} onViewMenu={onViewMenu} />
+      <BookingSummary booking={booking} onViewMenu={onViewMenu} defaultOpenSchedule={false} />
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-4">
+        <div className="space-y-3.5 sm:space-y-4">
           {entries.map((entry, idx) => (
             <VegetableEntry
               key={idx}
               entry={entry}
               index={idx}
               bookingId={booking.id}
+              initialPaths={initialPathsRef.current}
               onChange={handleEntryChange}
               onRemove={handleRemoveEntry}
             />
           ))}
 
           {!entries.length && (
-            <div className="p-8 text-center text-xs text-slate-500 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            <div className="p-6 sm:p-8 text-center text-xs text-slate-500 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
               No vegetable entries added yet. Click "+ Add Vegetable Item" below.
             </div>
           )}
@@ -164,13 +188,14 @@ export function VegetablesModal({ isOpen, onClose, booking, onViewMenu }) {
         </button>
 
         {error && (
-          <div className="text-xs font-medium text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 flex items-center gap-2">
+          <div className="text-xs font-medium text-red-600 bg-red-50 p-2.5 sm:p-3 rounded-xl border border-red-200 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 mt-6">
+        {/* Sticky Action Footer */}
+        <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 pb-1 border-t border-slate-100 flex items-center justify-end gap-3 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 mt-4">
           <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
           </Button>

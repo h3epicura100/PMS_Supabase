@@ -9,22 +9,26 @@ export const departmentService = {
    * @param {Object} params
    * @param {string} params.status
    * @param {string} params.remarks
-   * @param {File[]} [params.attachmentFiles] - Newly staged local files to upload
-   * @param {Array} [params.keptAttachments] - Retained existing attachment objects
+   * @param {Array} [params.attachments] - Final list of attachment objects
+   * @param {File[]} [params.attachmentFiles] - Local files to upload (legacy fallback)
+   * @param {Array} [params.keptAttachments] - Retained existing attachment objects (legacy fallback)
    * @param {string[]} [params.deletedPaths] - Storage paths to permanently remove
    * @param {string} params.updatedBy
    */
   async updateDeptTask(bookingId, deptKey, {
     status,
     remarks,
+    attachments,
     attachmentFiles = [],
     keptAttachments = [],
     deletedPaths = [],
     updatedBy,
   }) {
-    let finalAttachments = [...(keptAttachments || [])];
+    let finalAttachments = attachments !== undefined
+      ? [...(attachments || [])]
+      : [...(keptAttachments || [])];
 
-    // Upload new files if any
+    // Fallback if legacy attachmentFiles are passed
     if (attachmentFiles && attachmentFiles.length > 0) {
       const uploadedList = await storageService.uploadMultipleAttachments(
         `departments/${bookingId}/${deptKey}`,

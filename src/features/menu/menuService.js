@@ -11,13 +11,17 @@ export const menuService = {
     status,
     reason,
     remarks,
+    attachments,
     attachmentFiles = [],
     keptAttachments = [],
     deletedPaths = [],
     bookingData
   }) {
-    let finalAttachments = [...(keptAttachments || [])];
+    let finalAttachments = attachments !== undefined
+      ? [...(attachments || [])]
+      : [...(keptAttachments || [])];
 
+    // Fallback if legacy attachmentFiles are passed
     if (status === 'Finalized' && attachmentFiles && attachmentFiles.length > 0) {
       const uploadedList = await storageService.uploadMultipleAttachments(`menu/${bookingId}`, attachmentFiles);
       if (uploadedList && uploadedList.length > 0) {

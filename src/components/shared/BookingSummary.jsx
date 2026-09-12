@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { formatDateRangeDisplay } from '../../utils/dateUtils';
 import { EventScheduleTable } from './EventScheduleTable';
-import { ChevronDown, ChevronUp, Calendar, Users, MapPin, User } from 'lucide-react';
+import { ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 
-export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true }) {
+export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = false }) {
   const [showSchedule, setShowSchedule] = useState(defaultOpenSchedule);
 
   if (!booking) return null;
@@ -17,29 +17,29 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
   const schedule = booking.pms_event_schedule || booking.eventSchedule || [];
 
   return (
-    <div className="bg-slate-50 border border-pms-border rounded-xl p-4 mb-4 text-xs space-y-3 shadow-xs">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div>
+    <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-3 sm:p-4 mb-3.5 sm:mb-4 text-xs space-y-2.5 shadow-2xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="min-w-0">
           <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
             Customer
           </span>
-          <span className="font-semibold text-pms-text text-sm block">
+          <span className="font-semibold text-pms-text text-xs sm:text-sm block truncate" title={customerName}>
             {customerName}
           </span>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
             Event Period
           </span>
-          <span className="font-semibold text-pms-text block">
+          <span className="font-semibold text-pms-text text-xs block truncate" title={dateRange}>
             {dateRange}
           </span>
           {schedule.length > 0 && (
             <button
               type="button"
               onClick={() => setShowSchedule(!showSchedule)}
-              className="inline-flex items-center gap-1 text-[11px] text-pms-accent hover:underline font-medium mt-0.5"
+              className="inline-flex items-center gap-1 text-[11px] text-pms-accent hover:underline font-semibold mt-0.5 cursor-pointer bg-blue-50 hover:bg-blue-100/70 px-1.5 py-0.5 rounded transition-colors"
             >
               <span>{schedule.length} session{schedule.length > 1 ? 's' : ''}</span>
               {showSchedule ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -47,21 +47,21 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
           )}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
             Venue
           </span>
-          <span className="font-semibold text-pms-text block">
+          <span className="font-semibold text-pms-text text-xs block truncate" title={venue}>
             {venue}
           </span>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between min-w-0">
+          <div className="min-w-0">
             <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
               Total Guests
             </span>
-            <span className="font-mono font-bold text-pms-primary text-sm block">
+            <span className="font-mono font-bold text-pms-primary text-xs sm:text-sm block">
               {totalPax}
             </span>
           </div>
@@ -69,7 +69,7 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
             <button
               type="button"
               onClick={() => onViewMenu(booking.id)}
-              className="text-xs text-pms-accent hover:underline font-semibold"
+              className="text-xs text-pms-accent hover:underline font-semibold cursor-pointer ml-2 flex-shrink-0"
             >
               View Menu
             </button>
@@ -78,7 +78,7 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = true
       </div>
 
       {showSchedule && schedule.length > 0 && (
-        <div className="pt-3 border-t border-slate-200">
+        <div className="pt-2.5 border-t border-slate-200/80 animate-in fade-in duration-200">
           <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-pms-accent" />
             <span>Event Schedule Breakdown</span>

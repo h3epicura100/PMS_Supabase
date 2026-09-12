@@ -1,10 +1,5 @@
-import React, { useState, useEffect, useRef, useId } from 'react';
+import React, { useState, useRef, useId } from 'react';
 import { storageService } from '../../services/storageService';
-import {
-  saveFilesToSession,
-  restoreFilesFromSession,
-  clearFilesFromSession,
-} from '../../utils/fileSessionStore';
 import {
   UploadCloud,
   FileText,
@@ -15,7 +10,8 @@ import {
   ExternalLink,
   AlertCircle,
   Eye,
-  Film
+  Film,
+  Loader2
 } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -53,88 +49,43 @@ function FileTypeIcon({ category, className = 'w-4 h-4' }) {
 
 export function AttachmentUploader({
   label = 'Attachments',
-  sessionKey = null,
   required = false,
   maxFiles = 10,
   maxSizeMb = 50,
   accept = 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv',
-  newFiles = [],
-  onNewFilesChange,
-  existingAttachments = [],
-  onDeleteExisting,
+  folderPath = 'attachments',
+  attachments = [],
+  onAddAttachment,
+  onDeleteAttachment,
+  onUploadingChange,
   disabled = false,
   hint = 'Photos, videos (proof of work), PDFs or docs up to 50 MB each',
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [uploadingList, setUploadingList] = useState([]); // [{ id, name, size, type, status, error }]
   const [previewMedia, setPreviewMedia] = useState(null); // { url, type, title }
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const fileInputRef = useRef(null);
   const generatedId = useId();
-  const inputId = `file_input_${sessionKey || generatedId.replace(/[^a-zA-Z0-9]/g, '_')}`;
-
-  const effectiveKey = sessionKey || `pms_att_${label.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const inputId = `file_input_${generatedId.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const maxSizeBytes = maxSizeMb * 1024 * 1024;
-  const currentTotal = (existingAttachments?.length || 0) + (newFiles?.length || 0);
+  const currentTotal = (attachments?.length || 0) + uploadingList.length;
   const isLimitReached = currentTotal >= maxFiles;
 
-  // Restore staged files from IndexedDB on initial mount (especially if page reloaded on mobile)
-  useEffect(() => {
-    let isMounted = true;
-    async function restoreStagedFiles() {
-      if (!effectiveKey) return;
-      try {
-        const savedFiles = await restoreFilesFromSession(effectiveKey);
-        if (isMounted && savedFiles && savedFiles.length > 0 && newFiles.length === 0) {
-          if (onNewFilesChange) {
-            onNewFilesChange(savedFiles);
-          }
-        }
-      } catch (err) {
-        console.warn('Could not restore staged files from IndexedDB:', err);
-      }
-    }
-
-    restoreStagedFiles();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [effectiveKey]);
-
-  // Sync with visibility changes (when returning from mobile camera/gallery picker)
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible' && effectiveKey && newFiles.length === 0) {
-        try {
-          const savedFiles = await restoreFilesFromSession(effectiveKey);
-          if (savedFiles && savedFiles.length > 0 && onNewFilesChange) {
-            onNewFilesChange(savedFiles);
-          }
-        } catch (err) {
-          console.warn('Visibility restoration error:', err);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [effectiveKey, newFiles.length, onNewFilesChange]);
-
-  const handleFilesAdded = async (incomingList) => {
+  const handleFilesSelected = async (incomingList) => {
     setLocalError('');
-    if (!incomingList || !incomingList.length) return;
+    if (!incomingList || !incomingList.length || disabled) return;
 
-    const validNewFiles = [];
+    const filesToUpload = [];
     let oversizedCount = 0;
     let limitExceeded = false;
 
     for (let i = 0; i < incomingList.length; i++) {
       const file = incomingList[i];
 
-      if ((existingAttachments?.length || 0) + (newFiles?.length || 0) + validNewFiles.length >= maxFiles) {
+      if ((attachments?.length || 0) + uploadingList.length + filesToUpload.length >= maxFiles) {
         limitExceeded = true;
         break;
       }
@@ -144,11 +95,7 @@ export function AttachmentUploader({
         continue;
       }
 
-      // Check if file with same name and size is already staged
-      const isDuplicate = newFiles.some(f => f.name === file.name && f.size === file.size);
-      if (!isDuplicate) {
-        validNewFiles.push(file);
-      }
+      filesToUpload.push(file);
     }
 
     if (oversizedCount > 0) {
@@ -157,14 +104,44 @@ export function AttachmentUploader({
       setLocalError(`Maximum ${maxFiles} attachments allowed in total.`);
     }
 
-    if (validNewFiles.length > 0) {
-      const updatedList = [...newFiles, ...validNewFiles];
-      if (onNewFilesChange) {
-        onNewFilesChange(updatedList);
-      }
-      // Persist immediately to IndexedDB
-      if (effectiveKey) {
-        await saveFilesToSession(effectiveKey, updatedList);
+    if (filesToUpload.length === 0) return;
+
+    // Create uploading tracking items
+    const newUploadingItems = filesToUpload.map((f) => ({
+      id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      file: f,
+      status: 'uploading',
+    }));
+
+    setUploadingList(prev => {
+      const next = [...prev, ...newUploadingItems];
+      if (onUploadingChange) onUploadingChange(next.length > 0);
+      return next;
+    });
+
+    // Upload each file immediately to Supabase Storage
+    for (const item of newUploadingItems) {
+      try {
+        const uploadedAtt = await storageService.uploadAttachment(folderPath, item.file);
+        if (uploadedAtt && onAddAttachment) {
+          onAddAttachment(uploadedAtt);
+        }
+        setUploadingList(prev => {
+          const next = prev.filter(u => u.id !== item.id);
+          if (onUploadingChange) onUploadingChange(next.length > 0);
+          return next;
+        });
+      } catch (err) {
+        console.error(`Failed to upload ${item.name}:`, err);
+        setLocalError(`Failed to upload ${item.name}: ${err.message || 'Network error'}`);
+        setUploadingList(prev => {
+          const next = prev.filter(u => u.id !== item.id);
+          if (onUploadingChange) onUploadingChange(next.length > 0);
+          return next;
+        });
       }
     }
   };
@@ -185,13 +162,13 @@ export function AttachmentUploader({
     setIsDragging(false);
     if (disabled || isLimitReached) return;
     const files = Array.from(e.dataTransfer.files || []);
-    handleFilesAdded(files);
+    handleFilesSelected(files);
   };
 
   const handleInputChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      handleFilesAdded(files);
+      handleFilesSelected(files);
     }
     // Reset file input value so selecting the same file again works
     if (fileInputRef.current) {
@@ -199,50 +176,48 @@ export function AttachmentUploader({
     }
   };
 
-  const handleRemoveNewFile = async (idx) => {
-    if (!onNewFilesChange) return;
-    const updated = newFiles.filter((_, i) => i !== idx);
-    onNewFilesChange(updated);
-    if (effectiveKey) {
-      await saveFilesToSession(effectiveKey, updated);
-    }
-  };
-
-  const handlePreviewNewFile = (file) => {
-    const cat = getFileCategory(file);
-    const objectUrl = URL.createObjectURL(file);
-    if (cat === 'image' || cat === 'video') {
-      setPreviewMedia({
-        url: objectUrl,
-        type: cat,
-        title: file.name,
-      });
-    } else {
-      window.open(objectUrl, '_blank');
-    }
-  };
-
-  const handleViewExisting = async (att) => {
+  const handleViewOrPreview = async (att) => {
     if (!att || !att.path) return;
-    if (att.path.startsWith('data:') || att.path.startsWith('http://') || att.path.startsWith('https://')) {
-      window.open(att.path, '_blank');
-      return;
-    }
-    const url = await storageService.getSignedUrl(att.path);
-    if (url) {
-      window.open(url, '_blank');
+    const cat = getFileCategory(att);
+
+    try {
+      setIsLoadingPreview(true);
+      let url = att.path;
+      if (!att.path.startsWith('data:') && !att.path.startsWith('http://') && !att.path.startsWith('https://')) {
+        url = await storageService.getSignedUrl(att.path);
+      }
+
+      if (!url) {
+        setLocalError('Could not generate download link for file.');
+        return;
+      }
+
+      if (cat === 'image' || cat === 'video') {
+        setPreviewMedia({
+          url,
+          type: cat,
+          title: att.name || 'Attachment Preview',
+        });
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch (err) {
+      console.error('Error previewing attachment:', err);
+      setLocalError('Failed to open file preview.');
+    } finally {
+      setIsLoadingPreview(false);
     }
   };
 
   return (
     <div className="space-y-2.5">
       {/* Label and Count Header */}
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-1">
+        <label className="text-xs font-semibold text-slate-700 inline-flex items-center gap-1">
           <span>{label}</span>
-          {required && <span className="text-red-500 font-bold">*</span>}
+          {required && <span className="text-red-500 font-bold ml-0.5">*</span>}
         </label>
-        <span className="text-[11px] font-medium text-slate-400">
+        <span className="text-[11px] font-medium text-slate-400 flex-shrink-0">
           {maxFiles === 1 ? (
             <span className={currentTotal >= 1 ? 'text-emerald-600 font-semibold' : 'text-slate-500'}>
               {currentTotal >= 1 ? '1 file attached' : `1 file max (${maxSizeMb} MB)`}
@@ -265,7 +240,7 @@ export function AttachmentUploader({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-xl p-4 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-3 text-center sm:text-left select-none ${
+          className={`border-2 border-dashed rounded-xl p-3.5 sm:p-4 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-3 text-center sm:text-left select-none ${
             isDragging
               ? 'border-pms-accent bg-blue-50/70 ring-4 ring-pms-accent/15'
               : 'border-slate-200 bg-slate-50/60 hover:bg-slate-100/60 hover:border-pms-accent/70 active:bg-blue-50/30'
@@ -312,21 +287,58 @@ export function AttachmentUploader({
       {localError && (
         <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-200 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-500" />
-          <span>{localError}</span>
+          <span className="flex-1">{localError}</span>
+          <button
+            type="button"
+            onClick={() => setLocalError('')}
+            className="text-slate-400 hover:text-slate-600 p-0.5 rounded cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
-      {/* Combined File List Display */}
+      {/* Attachment List & Uploading Items */}
       {currentTotal > 0 && (
-        <div className="space-y-1.5 pt-1">
-          {/* Existing Saved Attachments */}
-          {existingAttachments && existingAttachments.length > 0 && (
+        <div className="space-y-2 pt-1">
+          {/* Active Uploading Files Banner/Cards */}
+          {uploadingList.length > 0 && (
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-0.5">
-                Saved Attachments ({existingAttachments.length})
+              <span className="text-[10px] font-bold uppercase tracking-wider text-pms-accent flex items-center gap-1.5 px-0.5">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Uploading to Storage ({uploadingList.length})...
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {existingAttachments.map((att, idx) => {
+                {uploadingList.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-2 p-2.5 bg-blue-50/70 border border-blue-200 rounded-lg shadow-2xs animate-pulse"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Loader2 className="w-4 h-4 text-pms-accent animate-spin flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-slate-800 truncate" title={item.name}>
+                          {item.name}
+                        </div>
+                        <div className="text-[10px] text-blue-600 font-medium">
+                          Uploading {formatBytes(item.size)}...
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Uploaded Attachments */}
+          {attachments && attachments.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-0.5">
+                Attached Files ({attachments.length})
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {attachments.map((att, idx) => {
                   const cat = getFileCategory(att);
                   return (
                     <div
@@ -349,76 +361,27 @@ export function AttachmentUploader({
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           type="button"
-                          onClick={() => handleViewExisting(att)}
+                          disabled={isLoadingPreview}
+                          onClick={() => handleViewOrPreview(att)}
                           className="p-1 text-slate-500 hover:text-pms-accent hover:bg-slate-100 rounded cursor-pointer transition-colors"
-                          title="View / Download file"
+                          title={cat === 'image' || cat === 'video' ? 'Preview media' : 'View / Download file'}
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          {cat === 'image' || cat === 'video' ? (
+                            <Eye className="w-3.5 h-3.5" />
+                          ) : (
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          )}
                         </button>
-                        {onDeleteExisting && !disabled && (
+                        {onDeleteAttachment && !disabled && (
                           <button
                             type="button"
-                            onClick={() => onDeleteExisting(idx, att)}
+                            onClick={() => onDeleteAttachment(idx, att)}
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer transition-colors"
                             title="Delete attachment"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Staged New Files for Upload */}
-          {newFiles && newFiles.length > 0 && (
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-pms-accent block px-0.5">
-                New Files Ready to Upload ({newFiles.length})
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {newFiles.map((file, idx) => {
-                  const cat = getFileCategory(file);
-                  return (
-                    <div
-                      key={`${file.name}_${idx}`}
-                      className="flex items-center justify-between gap-2 p-2 bg-blue-50/50 border border-blue-200 rounded-lg shadow-2xs"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <FileTypeIcon category={cat} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-semibold text-slate-900 truncate" title={file.name}>
-                            {file.name}
-                          </div>
-                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
-                            <span>{formatBytes(file.size)}</span>
-                            {cat === 'video' && <span className="font-semibold text-indigo-600">Video Proof</span>}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {(cat === 'image' || cat === 'video') && (
-                          <button
-                            type="button"
-                            onClick={() => handlePreviewNewFile(file)}
-                            className="p-1 text-slate-500 hover:text-pms-accent hover:bg-white rounded cursor-pointer transition-colors"
-                            title="Preview media"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveNewFile(idx)}
-                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded cursor-pointer transition-colors"
-                          title="Remove file"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </div>
                   );
@@ -440,11 +403,8 @@ export function AttachmentUploader({
               </span>
               <button
                 type="button"
-                onClick={() => {
-                  URL.revokeObjectURL(previewMedia.url);
-                  setPreviewMedia(null);
-                }}
-                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                onClick={() => setPreviewMedia(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>

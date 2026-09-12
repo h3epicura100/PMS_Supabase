@@ -11,23 +11,26 @@ export const vegetablesService = {
 
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
-      let kept = entry.keptAttachments !== undefined
-        ? entry.keptAttachments
-        : (Array.isArray(entry.attachments) ? entry.attachments : (entry.attachment ? [entry.attachment] : []));
+      let finalAttachments = entry.attachments !== undefined
+        ? [...(entry.attachments || [])]
+        : (entry.keptAttachments !== undefined
+            ? [...(entry.keptAttachments || [])]
+            : (Array.isArray(entry.attachments) ? entry.attachments : (entry.attachment ? [entry.attachment] : [])));
 
-      let newlyUploaded = [];
+      // Fallback for legacy local files
       if (entry.status === 'Complete' && entry.attachmentFiles && entry.attachmentFiles.length > 0) {
-        newlyUploaded = await storageService.uploadMultipleAttachments(
+        const newlyUploaded = await storageService.uploadMultipleAttachments(
           `vegetables/${bookingId}/${i}`,
           entry.attachmentFiles
         );
+        if (newlyUploaded && newlyUploaded.length > 0) {
+          finalAttachments = [...finalAttachments, ...newlyUploaded];
+        }
       }
 
       if (entry.deletedPaths && entry.deletedPaths.length > 0) {
         await storageService.deleteAttachments(entry.deletedPaths);
       }
-
-      const finalAttachments = [...kept, ...newlyUploaded];
 
       processedEntries.push({
         id: entry.id || undefined,
