@@ -55,25 +55,21 @@ function formatOverdueTime(diffMs: number): string {
 
 function getISTDateParts(): { istDateStr: string; istHour: number; istMinute: number } {
   const now = new Date();
-  const istFormatter = new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
 
-  const parts = istFormatter.formatToParts(now);
-  const partMap: Record<string, string> = {};
-  parts.forEach((p) => {
-    partMap[p.type] = p.value;
-  });
+  // Use pure UTC arithmetic to compute IST (UTC+5:30 = UTC+330 minutes).
+  // This avoids the Deno/V8 locale quirk where en-IN with hour12:false
+  // can still return 12-hour values (e.g. "03" instead of "15" for 3 PM),
+  // causing the 3 PM reminder slot to silently never match.
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 330 minutes in ms
+  const istMs = now.getTime() + IST_OFFSET_MS;
+  const istDate = new Date(istMs);
 
-  const istDateStr = `${partMap.year}-${partMap.month}-${partMap.day}`;
-  const istHour = parseInt(partMap.hour || "0", 10);
-  const istMinute = parseInt(partMap.minute || "0", 10);
+  const year = istDate.getUTCFullYear();
+  const month = String(istDate.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(istDate.getUTCDate()).padStart(2, "0");
+  const istDateStr = `${year}-${month}-${day}`;
+  const istHour = istDate.getUTCHours();   // 0-23, always 24h
+  const istMinute = istDate.getUTCMinutes();
 
   return { istDateStr, istHour, istMinute };
 }
