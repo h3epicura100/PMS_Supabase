@@ -2,9 +2,11 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { NAVIGATION } from '../../constants/permissions';
 import { useAuth } from '../../hooks/useAuth';
+import { usePendingCounts } from '../../hooks/usePendingCounts';
 
 export function Sidebar({ isOpen, onCloseMobile }) {
   const { currentUser, userPermissions, logout, hasAccess } = useAuth();
+  const pendingCounts = usePendingCounts();
 
   return (
     <>
@@ -50,23 +52,50 @@ export function Sidebar({ isOpen, onCloseMobile }) {
                   </div>
                 )}
 
-                {visibleItems.map((item) => (
-                  <NavLink
-                    key={item.route}
-                    to={item.route}
-                    onClick={onCloseMobile}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                        isActive
-                          ? 'bg-blue-700 text-white font-semibold shadow-sm'
-                          : 'text-blue-100 hover:bg-blue-800/80 hover:text-white'
-                      }`
-                    }
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
+                {visibleItems.map((item) => {
+                  const count = pendingCounts[item.key];
+                  const hasCount = typeof count === 'number';
+
+                  return (
+                    <NavLink
+                      key={item.route}
+                      to={item.route}
+                      onClick={onCloseMobile}
+                      className={({ isActive }) =>
+                        `group flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          isActive
+                            ? 'bg-blue-700 text-white font-semibold shadow-sm'
+                            : 'text-blue-100 hover:bg-blue-800/80 hover:text-white'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 shrink-0" />
+                            <span className="truncate">{item.label}</span>
+                          </div>
+
+                          {hasCount && (
+                            <span
+                              className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs rounded-full shrink-0 transition-all ${
+                                count > 0
+                                  ? isActive
+                                    ? 'bg-white text-pms-primary font-bold shadow-sm'
+                                    : 'bg-blue-500 text-white font-bold shadow-xs group-hover:bg-blue-400 group-hover:text-blue-950'
+                                  : isActive
+                                  ? 'bg-blue-800/90 text-blue-200 font-medium'
+                                  : 'bg-blue-900/60 text-blue-300/80 font-medium group-hover:text-blue-200'
+                              }`}
+                            >
+                              {count}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
               </div>
             );
           })}
