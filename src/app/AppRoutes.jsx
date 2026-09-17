@@ -6,7 +6,7 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { BookingsPage } from '../features/bookings/BookingsPage';
 import { MenuFinalizePage } from '../features/menu/MenuFinalizePage';
-import { InformChefPage } from '../features/departments/informChef/InformChefPage';
+import { KitchenPrepPage } from '../features/departments/kitchenPrep/KitchenPrepPage';
 import { TagPrintPage } from '../features/departments/tagPrint/TagPrintPage';
 import { DressPage } from '../features/departments/dress/DressPage';
 import { DecorPage } from '../features/departments/decor/DecorPage';
@@ -60,13 +60,14 @@ export function AppRoutes() {
         />
 
         <Route
-          path="inform-to-chef"
+          path="kitchen-preparation"
           element={
             <ProtectedRoute pageKey="chef">
-              <InformChefPage />
+              <KitchenPrepPage />
             </ProtectedRoute>
           }
         />
+        <Route path="inform-to-chef" element={<Navigate to="/kitchen-preparation" replace />} />
 
         <Route
           path="tag-print"

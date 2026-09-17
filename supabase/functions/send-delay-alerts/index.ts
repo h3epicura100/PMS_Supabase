@@ -1,5 +1,5 @@
 // ============================================================
-// ORDER RAIL PMS — SUPABASE EDGE FUNCTION: SEND DELAY ALERTS
+// H3MS (H3 MANAGEMENT SYSTEM) — SUPABASE EDGE FUNCTION: SEND DELAY ALERTS
 // File: supabase/functions/send-delay-alerts/index.ts
 // ============================================================
 
@@ -341,7 +341,7 @@ serve(async (req: Request) => {
         divider,
         `⚡ *Action Required:* Please complete your department task.`,
         `🌐 https://pms-supabase.vercel.app/`,
-        `_Order Rail PMS_`,
+        `_H3MS (H3 Management System)_`,
       ].join("\n");
 
       alertsToSend.push({

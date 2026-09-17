@@ -19,8 +19,8 @@ import {
 import { toast } from 'sonner';
 
 const DEPT_INFO = {
-  inform_to_chef: { label: 'Inform to Chef', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-  chef: { label: 'Inform to Chef', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  inform_to_chef: { label: 'Kitchen Preparation', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  chef: { label: 'Kitchen Preparation', color: 'bg-blue-50 text-blue-700 border-blue-200' },
   decor: { label: 'Decor & Floral', color: 'bg-purple-50 text-purple-700 border-purple-200' },
   dress: { label: 'Dress & Uniform', color: 'bg-pink-50 text-pink-700 border-pink-200' },
   crockery: { label: 'Crockery & Cutlery', color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -287,7 +287,8 @@ export function NotificationLogs() {
                 className="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:border-pms-accent focus:bg-white text-slate-700 transition-colors"
               >
                 <option value="ALL">All Departments</option>
-                <option value="inform_to_chef">Inform to Chef</option>
+                <option value="chef">Kitchen Preparation</option>
+                <option value="inform_to_chef">Kitchen Preparation (Legacy)</option>
                 <option value="decor">Decor & Floral</option>
                 <option value="dress">Dress & Uniform</option>
                 <option value="crockery">Crockery & Cutlery</option>

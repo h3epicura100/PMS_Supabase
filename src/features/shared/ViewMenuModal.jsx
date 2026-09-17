@@ -248,7 +248,7 @@ export function ViewMenuModal({ isOpen, onClose, booking }) {
               <Calendar className="w-3.5 h-3.5 text-pms-accent" />
               <span>Event Schedule & Headcount</span>
             </div>
-            <EventScheduleTable schedule={schedule} showTotal={true} />
+            <EventScheduleTable schedule={schedule} showTotal={false} />
           </div>
         )}
 

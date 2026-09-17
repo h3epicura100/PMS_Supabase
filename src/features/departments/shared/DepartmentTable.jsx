@@ -163,7 +163,6 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
           const delayInfo = calculateDelayInfo(b, effectiveStatus, deptData.completedAt || deptData.updatedAt);
           const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
           const sessionCount = b.eventSchedule?.length || 0;
-          const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
 
           const effectiveDeadline = getEffectiveDeadline(b);
           const deadlineDisplay = effectiveDeadline
@@ -227,15 +226,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
                 <div className="flex items-start justify-between sm:justify-start sm:gap-3 py-1 border-b border-slate-100/80 sm:border-0">
                   <span className="text-[11px] font-semibold uppercase text-slate-400">Event Date:</span>
-                  <div className="text-right sm:text-left">
-                    <span className="font-medium text-pms-text">{dateRange}</span>
-                    {sessionCount > 1 && (
-                      <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium ml-1.5">
-                        <Calendar className="w-2.5 h-2.5" />
-                        {sessionCount} sessions
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-medium text-pms-text text-right sm:text-left">{dateRange}</span>
                 </div>
 
                 {isPendingTab && (
@@ -251,8 +242,11 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-start sm:gap-3 py-1 border-b border-slate-100/80 sm:border-0">
-                  <span className="text-[11px] font-semibold uppercase text-slate-400">Guests (Pax):</span>
-                  <span className="font-mono font-bold text-slate-800">{paxDisplay}</span>
+                  <span className="text-[11px] font-semibold uppercase text-slate-400">Sessions:</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-100">
+                    <Calendar className="w-3 h-3 text-blue-500" />
+                    {sessionCount} {sessionCount === 1 ? 'session' : 'sessions'}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-start sm:gap-3 py-1 border-b border-slate-100/80 sm:border-0">
@@ -302,7 +296,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                 <th className="py-3 px-4">Event Date</th>
                 {isPendingTab && <th className="py-3 px-4">Task Deadline</th>}
                 <th className="py-3 px-4">Venue</th>
-                <th className="py-3 px-4">Guests</th>
+                <th className="py-3 px-4">Sessions</th>
                 <th className="py-3 px-4">Menu Attachment</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Delay Days</th>
@@ -320,7 +314,6 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                 const delayInfo = calculateDelayInfo(b, effectiveStatus, deptData.completedAt || deptData.updatedAt);
                 const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
                 const sessionCount = b.eventSchedule?.length || 0;
-                const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
 
                 const effectiveDeadline = getEffectiveDeadline(b);
                 const deadlineDisplay = effectiveDeadline
@@ -368,13 +361,7 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                       {b.customerName}
                     </td>
                     <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
-                      <div>{dateRange}</div>
-                      {sessionCount > 1 && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
-                          <Calendar className="w-2.5 h-2.5" />
-                          {sessionCount} sessions
-                        </span>
-                      )}
+                      {dateRange}
                     </td>
                     {isPendingTab && (
                       <td className="py-3 px-4 text-pms-muted font-medium whitespace-nowrap font-mono text-[11px]">
@@ -384,8 +371,11 @@ export function DepartmentTable({ bookings = [], deptKey, isPendingTab, onUpdate
                     <td className="py-3 px-4 text-pms-muted">
                       {b.venueName || '—'}
                     </td>
-                    <td className="py-3 px-4 text-pms-text font-medium whitespace-nowrap">
-                      <span className="font-mono font-semibold text-slate-800">{paxDisplay}</span>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                        <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        {sessionCount} {sessionCount === 1 ? 'Session' : 'Sessions'}
+                      </span>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <MenuAttachmentCell booking={b} onViewMenu={onViewMenu} />

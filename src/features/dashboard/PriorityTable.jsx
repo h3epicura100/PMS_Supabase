@@ -208,7 +208,7 @@ export function PriorityTable({ items = [] }) {
               booking.eventStartDate || booking.eventDate,
               booking.eventEndDate || booking.eventDate
             );
-            const paxDisplay = (booking.totalGuestCount ?? booking.guestCount)?.toLocaleString() || '—';
+            const sessionCount = booking.eventSchedule?.length || 0;
 
             return (
               <div
@@ -228,9 +228,9 @@ export function PriorityTable({ items = [] }) {
                       <Calendar className="w-3 h-3 text-slate-400" />
                       {dateRange}
                     </span>
-                    <span className="text-xs text-slate-500 flex items-center gap-1 font-medium whitespace-nowrap">
-                      <Users className="w-3 h-3 text-slate-400" />
-                      {paxDisplay} Pax
+                    <span className="text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 font-semibold inline-flex items-center gap-1 whitespace-nowrap">
+                      <Calendar className="w-3 h-3 text-blue-500" />
+                      {sessionCount} {sessionCount === 1 ? 'Session' : 'Sessions'}
                     </span>
                   </div>
 

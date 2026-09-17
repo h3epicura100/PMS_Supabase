@@ -32,8 +32,8 @@ export function Sidebar({ isOpen, onCloseMobile }) {
               className="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow-sm"
             />
             <div>
-              <h1 className="font-bold text-lg leading-tight">Order Rail</h1>
-              <p className="text-[10px] text-blue-200 tracking-wider uppercase font-medium">Catering Ops</p>
+              <h1 className="font-bold text-lg leading-tight">H3MS</h1>
+              <p className="text-[10px] text-blue-200 tracking-wider uppercase font-medium">H3 Management System</p>
             </div>
           </div>
         </div>

@@ -72,7 +72,6 @@ export function UpcomingEvents({ bookings = [] }) {
               const info = calculatePipelineInfo(b);
               const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
               const sessionCount = b.eventSchedule?.length || 0;
-              const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
 
               return (
                 <div
@@ -88,8 +87,9 @@ export function UpcomingEvents({ bookings = [] }) {
                         {b.customerName}
                       </span>
                     </div>
-                    <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                      {paxDisplay} Pax
+                    <span className="font-semibold text-xs text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 inline-flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-blue-500" />
+                      {sessionCount} {sessionCount === 1 ? 'Session' : 'Sessions'}
                     </span>
                   </div>
 
@@ -141,7 +141,7 @@ export function UpcomingEvents({ bookings = [] }) {
                   <th className="py-2.5 px-4 bg-slate-50">Booking ID</th>
                   <th className="py-2.5 px-4 bg-slate-50">Customer</th>
                   <th className="py-2.5 px-4 bg-slate-50">Event Date</th>
-                  <th className="py-2.5 px-4 bg-slate-50">Guests</th>
+                  <th className="py-2.5 px-4 bg-slate-50">Sessions</th>
                   <th className="py-2.5 px-4 bg-slate-50">Overall Progress</th>
                   <th className="py-2.5 px-4 bg-slate-50">Pending Departments</th>
                 </tr>
@@ -151,7 +151,6 @@ export function UpcomingEvents({ bookings = [] }) {
                   const info = calculatePipelineInfo(b);
                   const dateRange = formatDateRangeDisplay(b.eventStartDate || b.eventDate, b.eventEndDate || b.eventDate);
                   const sessionCount = b.eventSchedule?.length || 0;
-                  const paxDisplay = (b.totalGuestCount ?? b.guestCount)?.toLocaleString() || '—';
 
                   return (
                     <tr key={b.id} className="hover:bg-slate-50/80 transition-colors">
@@ -162,16 +161,13 @@ export function UpcomingEvents({ bookings = [] }) {
                         {b.customerName}
                       </td>
                       <td className="py-2.5 px-4 text-pms-text font-medium whitespace-nowrap">
-                        <div>{dateRange}</div>
-                        {sessionCount > 1 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-pms-accent bg-blue-50 px-1.5 py-0.2 rounded font-medium mt-0.5">
-                            <Calendar className="w-2.5 h-2.5" />
-                            {sessionCount} sessions
-                          </span>
-                        )}
+                        {dateRange}
                       </td>
-                      <td className="py-2.5 px-4 text-pms-text font-medium whitespace-nowrap">
-                        <span className="font-mono font-semibold text-slate-800">{paxDisplay}</span>
+                      <td className="py-2.5 px-4 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                          <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          {sessionCount} {sessionCount === 1 ? 'Session' : 'Sessions'}
+                        </span>
                       </td>
                       <td className="py-2.5 px-4 min-w-[130px]">
                         <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden mb-1">

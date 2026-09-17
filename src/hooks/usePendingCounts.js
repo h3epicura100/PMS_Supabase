@@ -3,7 +3,7 @@ import { useBookings } from '../features/bookings/bookingHooks';
 import { DEPT_LIST } from '../constants/departments';
 
 /**
- * Derives the live count of pending tasks/items for every workflow and booking page in Order Rail PMS.
+ * Derives the live count of pending tasks/items for every workflow and booking page in H3MS.
  * Synchronizes with real-time TanStack query cache ('pms_bookings').
  */
 export function usePendingCounts() {

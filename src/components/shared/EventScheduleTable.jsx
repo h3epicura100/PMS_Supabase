@@ -2,7 +2,7 @@ import React from 'react';
 import { formatDateDisplay } from '../../utils/dateUtils';
 import { Users, Calendar } from 'lucide-react';
 
-export function EventScheduleTable({ schedule = [], showTotal = true, className = '' }) {
+export function EventScheduleTable({ schedule = [], showTotal = false, className = '' }) {
   if (!schedule || schedule.length === 0) {
     return (
       <div className="text-xs text-slate-400 italic py-2 text-center">

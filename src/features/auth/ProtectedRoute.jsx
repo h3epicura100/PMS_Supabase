@@ -9,7 +9,7 @@ export function ProtectedRoute({ children, pageKey }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-pms-bg">
-        <div className="text-sm font-medium text-pms-muted animate-pulse">Loading Order Rail...</div>
+        <div className="text-sm font-medium text-pms-muted animate-pulse">Loading H3MS...</div>
       </div>
     );
   }

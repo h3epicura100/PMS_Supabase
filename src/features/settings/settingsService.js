@@ -4,7 +4,7 @@ import { authService } from '../auth/authService';
 export const ALL_PERMISSIONS_MASTER = [
   { key: 'bookings', label: 'Bookings' },
   { key: 'menuFinalize', label: 'Menu Finalize' },
-  { key: 'chef', label: 'Inform to Chef' },
+  { key: 'chef', label: 'Kitchen Preparation' },
   { key: 'tagPrints', label: 'Tag Print' },
   { key: 'dress', label: 'Dress' },
   { key: 'decor', label: 'Decor List' },

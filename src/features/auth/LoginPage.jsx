@@ -46,8 +46,8 @@ export function LoginPage() {
             className="w-12 h-12 object-contain bg-white rounded-xl p-1 shadow-md border border-slate-100"
           />
           <div>
-            <h2 className="text-2xl font-bold text-pms-text leading-tight">Order Rail</h2>
-            <p className="text-xs text-pms-muted font-medium">Catering Operations System</p>
+            <h2 className="text-2xl font-bold text-pms-text leading-tight">H3MS</h2>
+            <p className="text-xs text-pms-muted font-medium">H3 Management System</p>
           </div>
         </div>
 

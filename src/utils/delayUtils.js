@@ -1,5 +1,5 @@
 /**
- * Delay utilities for Order Rail PMS.
+ * Delay utilities for H3MS (H3 Management System).
  * Calculates task delays based on 48-hour creation window + priority extension overrides.
  */
 

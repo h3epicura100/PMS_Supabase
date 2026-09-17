@@ -17,7 +17,7 @@ export const NAVIGATION = [
   {
     group: 'Department Workflow',
     items: [
-      { route: '/inform-to-chef', key: 'chef', label: 'Inform to Chef' },
+      { route: '/kitchen-preparation', key: 'chef', label: 'Kitchen Preparation' },
       { route: '/tag-print', key: 'tagPrints', label: 'Tag Print' },
       { route: '/dress', key: 'dress', label: 'Dress' },
       { route: '/decor-list', key: 'decor', label: 'Decor List' },

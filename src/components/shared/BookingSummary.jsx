@@ -13,7 +13,6 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = fals
   const endDate = booking.event_end_date || booking.eventEndDate || booking.event_date || booking.eventDate;
   const dateRange = formatDateRangeDisplay(startDate, endDate);
   const venue = booking.venue_name || booking.venueName || '—';
-  const totalPax = (booking.total_guest_count ?? booking.totalGuestCount ?? booking.guest_count ?? booking.guestCount)?.toLocaleString() || '—';
   const schedule = booking.pms_event_schedule || booking.eventSchedule || [];
 
   return (
@@ -35,16 +34,6 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = fals
           <span className="font-semibold text-pms-text text-xs block truncate" title={dateRange}>
             {dateRange}
           </span>
-          {schedule.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowSchedule(!showSchedule)}
-              className="inline-flex items-center gap-1 text-[11px] text-pms-accent hover:underline font-semibold mt-0.5 cursor-pointer bg-blue-50 hover:bg-blue-100/70 px-1.5 py-0.5 rounded transition-colors"
-            >
-              <span>{schedule.length} session{schedule.length > 1 ? 's' : ''}</span>
-              {showSchedule ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-          )}
         </div>
 
         <div className="min-w-0">
@@ -59,11 +48,20 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = fals
         <div className="flex items-center justify-between min-w-0">
           <div className="min-w-0">
             <span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-              Total Guests
+              Sessions
             </span>
-            <span className="font-mono font-bold text-pms-primary text-xs sm:text-sm block">
-              {totalPax}
-            </span>
+            {schedule.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowSchedule(!showSchedule)}
+                className="inline-flex items-center gap-1 text-xs text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded font-semibold transition-colors border border-blue-100 cursor-pointer"
+              >
+                <span>{schedule.length} {schedule.length === 1 ? 'session' : 'sessions'}</span>
+                {showSchedule ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            ) : (
+              <span className="text-slate-400 font-medium">1 session</span>
+            )}
           </div>
           {onViewMenu && (
             <button
@@ -83,7 +81,7 @@ export function BookingSummary({ booking, onViewMenu, defaultOpenSchedule = fals
             <Calendar className="w-3.5 h-3.5 text-pms-accent" />
             <span>Event Schedule Breakdown</span>
           </div>
-          <EventScheduleTable schedule={schedule} showTotal={true} />
+          <EventScheduleTable schedule={schedule} showTotal={false} />
         </div>
       )}
     </div>
