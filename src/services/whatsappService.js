@@ -194,7 +194,7 @@ export const whatsappService = {
     lines.push(``);
     lines.push(divider);
     lines.push(`📎 _Finalized menu attached above_`);
-    lines.push(`🌐 https://pms-supabase.vercel.app/`);
+    lines.push(`🌐 https://h3ms-supabase.vercel.app/`);
     lines.push(`_H3MS (H3 Management System)_`);
 
     return lines.join('\n');

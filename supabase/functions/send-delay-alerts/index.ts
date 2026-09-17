@@ -340,7 +340,7 @@ serve(async (req: Request) => {
         `⏰ *Overdue:* ${overdueText}`,
         divider,
         `⚡ *Action Required:* Please complete your department task.`,
-        `🌐 https://pms-supabase.vercel.app/`,
+        `🌐 https://h3ms-supabase.vercel.app/`,
         `_H3MS (H3 Management System)_`,
       ].join("\n");
 
