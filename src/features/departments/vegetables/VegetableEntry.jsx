@@ -182,12 +182,12 @@ export function VegetableEntry({ entry, index, bookingId, initialPaths = [], onC
             label="Attachment Proof (Photos / Videos / Receipt)"
             folderPath={folderPath}
             required={true}
-            maxFiles={10}
+            maxFiles={30}
             maxSizeMb={50}
             attachments={attachments}
             onAddAttachment={handleAddAttachment}
             onDeleteAttachment={handleDeleteAttachment}
-            hint="Upload purchase proof, photo, or video (up to 50 MB each, max 10 files)"
+            hint="Upload purchase proof, photo, or video (up to 50 MB each, max 30 files)"
           />
         </div>
       )}

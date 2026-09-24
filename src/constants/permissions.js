@@ -12,6 +12,13 @@ export const NAVIGATION = [
     items: [
       { route: '/bookings', key: 'bookings', label: 'Bookings' },
       { route: '/menu-finalize', key: 'menuFinalize', label: 'Menu Finalize' },
+      { route: '/menu-chatbot', key: 'menuChatbot', label: 'Menu AI Assistant' },
+    ]
+  },
+  {
+    group: 'Communication',
+    items: [
+      { route: '/whatsapp', key: 'whatsapp', label: 'WhatsApp' },
     ]
   },
   {
@@ -36,4 +43,5 @@ export const NAVIGATION = [
   }
 ];
 
-export const ALL_PAGE_KEYS = ['dashboard', 'bookings', 'menuFinalize', 'masters', 'settings', ...DEPT_LIST.map(d => d.key)];
+export const ALL_PAGE_KEYS = ['dashboard', 'bookings', 'menuFinalize', 'menuChatbot', 'whatsapp', 'masters', 'settings', ...DEPT_LIST.map(d => d.key)];
+

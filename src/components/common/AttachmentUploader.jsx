@@ -50,7 +50,7 @@ function FileTypeIcon({ category, className = 'w-4 h-4' }) {
 export function AttachmentUploader({
   label = 'Attachments',
   required = false,
-  maxFiles = 10,
+  maxFiles = 30,
   maxSizeMb = 50,
   accept = 'image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.csv',
   folderPath = 'attachments',
@@ -335,57 +335,59 @@ export function AttachmentUploader({
           {attachments && attachments.length > 0 && (
             <div className="space-y-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block px-0.5">
-                Attached Files ({attachments.length})
+                Attached Files ({attachments.length}/{maxFiles})
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {attachments.map((att, idx) => {
-                  const cat = getFileCategory(att);
-                  return (
-                    <div
-                      key={att.path || idx}
-                      className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-200 rounded-lg shadow-2xs hover:border-slate-300 transition-colors"
-                    >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <FileTypeIcon category={cat} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-semibold text-slate-800 truncate" title={att.name || 'Attachment'}>
-                            {att.name || 'Attachment'}
-                          </div>
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                            {att.size ? <span>{formatBytes(att.size)}</span> : null}
-                            {cat === 'video' && <span className="font-semibold text-indigo-600">Video Proof</span>}
+              <div className="max-h-60 sm:max-h-72 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {attachments.map((att, idx) => {
+                    const cat = getFileCategory(att);
+                    return (
+                      <div
+                        key={att.path || idx}
+                        className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-200 rounded-lg shadow-2xs hover:border-slate-300 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <FileTypeIcon category={cat} />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold text-slate-800 truncate" title={att.name || 'Attachment'}>
+                              {att.name || 'Attachment'}
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                              {att.size ? <span>{formatBytes(att.size)}</span> : null}
+                              {cat === 'video' && <span className="font-semibold text-indigo-600">Video Proof</span>}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          type="button"
-                          disabled={isLoadingPreview}
-                          onClick={() => handleViewOrPreview(att)}
-                          className="p-1 text-slate-500 hover:text-pms-accent hover:bg-slate-100 rounded cursor-pointer transition-colors"
-                          title={cat === 'image' || cat === 'video' ? 'Preview media' : 'View / Download file'}
-                        >
-                          {cat === 'image' || cat === 'video' ? (
-                            <Eye className="w-3.5 h-3.5" />
-                          ) : (
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        {onDeleteAttachment && !disabled && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             type="button"
-                            onClick={() => onDeleteAttachment(idx, att)}
-                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer transition-colors"
-                            title="Delete attachment"
+                            disabled={isLoadingPreview}
+                            onClick={() => handleViewOrPreview(att)}
+                            className="p-1 text-slate-500 hover:text-pms-accent hover:bg-slate-100 rounded cursor-pointer transition-colors"
+                            title={cat === 'image' || cat === 'video' ? 'Preview media' : 'View / Download file'}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            {cat === 'image' || cat === 'video' ? (
+                              <Eye className="w-3.5 h-3.5" />
+                            ) : (
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            )}
                           </button>
-                        )}
+                          {onDeleteAttachment && !disabled && (
+                            <button
+                              type="button"
+                              onClick={() => onDeleteAttachment(idx, att)}
+                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer transition-colors"
+                              title="Delete attachment"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

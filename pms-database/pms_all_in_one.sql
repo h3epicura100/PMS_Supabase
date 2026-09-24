@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS pms_bookings (
   status           TEXT NOT NULL DEFAULT 'active'
     CHECK (status IN ('active','cancelled','closed')),
   created_by       TEXT REFERENCES pms_users(id) ON DELETE SET NULL,
+  delay_deadline_override TIMESTAMPTZ DEFAULT NULL,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -116,6 +117,7 @@ ALTER TABLE pms_bookings DROP COLUMN IF EXISTS event_start;
 ALTER TABLE pms_bookings DROP COLUMN IF EXISTS guest_count;
 ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS event_start_date DATE;
 ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS event_end_date DATE;
+ALTER TABLE pms_bookings ADD COLUMN IF NOT EXISTS delay_deadline_override TIMESTAMPTZ DEFAULT NULL;
 
 
 -- 11. EVENT SCHEDULE TABLE (Multi-Day Sessions with Time Label & Pax)
@@ -210,7 +212,31 @@ CREATE TABLE IF NOT EXISTS pms_cheese_dairy_entries (
   completed_at    TIMESTAMPTZ
 );
 
--- 16. EVENT TIMES MASTER TABLE
+-- 16. WHATSAPP NOTIFICATIONS AUDIT TABLE
+CREATE TABLE IF NOT EXISTS pms_whatsapp_notifications (
+  id             UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  booking_id     TEXT NOT NULL REFERENCES pms_bookings(id) ON DELETE CASCADE,
+  department_key TEXT NOT NULL,
+  type           TEXT NOT NULL CHECK (type IN ('initial_delay', 'reminder_11am', 'reminder_3pm', 'reminder_6pm')),
+  sent_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  recipients     TEXT[],
+  status         TEXT NOT NULL DEFAULT 'Sent' CHECK (status IN ('Sent', 'Failed', 'Partial', 'Skipped')),
+  error_message  TEXT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pms_wa_notif_lookup 
+  ON pms_whatsapp_notifications (booking_id, department_key, sent_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS pms_wa_notif_dedup 
+  ON pms_whatsapp_notifications (
+    booking_id, 
+    department_key, 
+    type, 
+    ((sent_at AT TIME ZONE 'Asia/Kolkata')::DATE)
+  );
+
+-- 17. EVENT TIMES MASTER TABLE
 CREATE TABLE IF NOT EXISTS pms_event_times (
   id          SERIAL PRIMARY KEY,
   name        TEXT UNIQUE NOT NULL,
@@ -324,12 +350,12 @@ DECLARE
   v_booking_id        TEXT;
   v_customer_id       UUID;
   v_function_type_id  INTEGER;
-  v_venue_id          UUID;
   v_reference_id      UUID;
   dept_rec            RECORD;
   v_sched_item        JSONB;
   v_idx               INTEGER := 0;
   v_event_date        DATE;
+  v_created_now       TIMESTAMPTZ := NOW();
 BEGIN
   -- 1. Upsert / Insert Customer (3NF)
   IF p_customer_mobile IS NOT NULL AND TRIM(p_customer_mobile) <> '' THEN
@@ -354,35 +380,35 @@ BEGIN
     RETURNING id INTO v_function_type_id;
   END IF;
 
-  -- 3. Lookup/Insert Venue (3NF)
-  IF p_venue_name IS NOT NULL AND TRIM(p_venue_name) <> '' THEN
-    INSERT INTO pms_venues (name)
-    VALUES (p_venue_name)
-    ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-    RETURNING id INTO v_venue_id;
-  END IF;
-
-  -- 4. Insert Reference (3NF)
+  -- 3. Insert Reference (3NF)
   IF p_reference_name IS NOT NULL AND TRIM(p_reference_name) <> '' THEN
     INSERT INTO pms_references (name, mobile)
     VALUES (p_reference_name, p_reference_number)
     RETURNING id INTO v_reference_id;
   END IF;
 
-  -- 5. Generate formatted Booking ID
+  -- 4. Generate formatted Booking ID
   v_booking_id := pms_next_booking_id();
   v_event_date := COALESCE(p_event_start_date, p_event_end_date);
 
-  -- 6. Insert Booking Record referencing foreign keys
+  -- 5. Insert Booking Record
   INSERT INTO pms_bookings (
     id, customer_id, function_type_id,
     event_start_date, event_end_date, event_date,
-    venue_id, reference_id, remarks, created_by
+    venue_name, reference_id, remarks, created_by,
+    created_at, updated_at
   ) VALUES (
     v_booking_id, v_customer_id, v_function_type_id,
     p_event_start_date, p_event_end_date, v_event_date,
-    v_venue_id, v_reference_id, p_remarks, p_created_by
+    p_venue_name, v_reference_id, p_remarks, p_created_by,
+    v_created_now, v_created_now
   );
+
+  -- 6. Priority Extension Rule:
+  -- Extend existing bookings ONLY if new event is earlier AND existing booking is still within its 48h active window
+  IF v_event_date IS NOT NULL THEN
+    PERFORM pms_extend_booking_delays(v_event_date, v_booking_id, v_created_now);
+  END IF;
 
   -- 7. Insert Schedule entries if provided
   IF p_schedule IS NOT NULL AND jsonb_array_length(p_schedule) > 0 THEN
@@ -413,7 +439,42 @@ BEGIN
 END;
 $$;
 
--- 25. RPC FUNCTION: UPSERT EVENT SCHEDULE
+-- 25. RPC FUNCTION: EXTEND BOOKING DELAYS BY +24 HOURS FOR LATER ACTIVE EVENTS (WITHIN 48H WINDOW)
+CREATE OR REPLACE FUNCTION pms_extend_booking_delays(
+  p_new_event_date DATE,
+  p_exclude_booking_id TEXT DEFAULT NULL,
+  p_new_created_at TIMESTAMPTZ DEFAULT NOW()
+)
+RETURNS INTEGER LANGUAGE plpgsql AS $$
+DECLARE
+  v_updated_count INTEGER := 0;
+  v_ref_time TIMESTAMPTZ := COALESCE(p_new_created_at, NOW());
+BEGIN
+  IF p_new_event_date IS NULL THEN
+    RETURN 0;
+  END IF;
+
+  WITH updated AS (
+    UPDATE pms_bookings
+    SET 
+      delay_deadline_override = COALESCE(delay_deadline_override, created_at + INTERVAL '48 hours') + INTERVAL '24 hours',
+      updated_at = NOW()
+    WHERE status = 'active'
+      AND (p_exclude_booking_id IS NULL OR id <> p_exclude_booking_id)
+      AND COALESCE(event_start_date, event_date) > p_new_event_date
+      AND (
+        -- ONLY extend if the new booking is created while this booking is still within its active deadline window
+        COALESCE(delay_deadline_override, created_at + INTERVAL '48 hours') >= v_ref_time
+      )
+    RETURNING id
+  )
+  SELECT COUNT(*) INTO v_updated_count FROM updated;
+
+  RETURN v_updated_count;
+END;
+$$;
+
+-- 26. RPC FUNCTION: UPSERT EVENT SCHEDULE
 CREATE OR REPLACE FUNCTION pms_upsert_event_schedule(
   p_booking_id TEXT,
   p_schedule   JSONB DEFAULT '[]'::jsonb
@@ -441,7 +502,7 @@ BEGIN
 END;
 $$;
 
--- 26. EXPANDED VIEW: FLAT COMPATIBILITY FOR QUERYING BOOKINGS
+-- 27. EXPANDED VIEW: FLAT COMPATIBILITY FOR QUERYING BOOKINGS
 CREATE OR REPLACE VIEW v_pms_bookings_expanded AS
 SELECT
   b.id,
@@ -458,6 +519,8 @@ SELECT
   b.created_by,
   b.created_at,
   b.updated_at,
+  b.delay_deadline_override,
+  COALESCE(b.delay_deadline_override, b.created_at + INTERVAL '48 hours') AS effective_delay_deadline,
 
   -- Normalized Customer fields
   c.id          AS customer_id,

@@ -372,10 +372,18 @@ export const notificationService = {
         // Mark immediately in local cache to prevent concurrent loops
         saveLocalNotifCache(dedupKey);
 
-        // Fetch recipients (strictly assigned dept users, NO admin)
-        const recipients = await this.getRecipientsForDepartment(deptKey);
+        // Fetch recipients (strictly assigned dept users, NO admin, or tester number in Test Mode)
+        let recipients = [];
+        if (whatsappService.isTestMode()) {
+          const testNum = whatsappService.getDefaultNumber();
+          recipients = testNum ? [testNum] : [];
+          console.info(`[NotificationService] Test Mode Active: Sending delay alert only to tester number: ${testNum}`);
+        } else {
+          recipients = await this.getRecipientsForDepartment(deptKey);
+        }
+
         if (recipients.length === 0) {
-          console.warn(`[NotificationService] No staff phone numbers mapped for department: ${deptKey}`);
+          console.warn(`[NotificationService] No phone numbers mapped for department: ${deptKey}`);
           skippedCount++;
           results.push({
             bookingId: b.id,
@@ -393,12 +401,32 @@ export const notificationService = {
 
         if (whatsappService.isConfigured()) {
           for (const phone of recipients) {
+            let apiRes = null;
+            let sendError = null;
             try {
-              await whatsappService._sendText(phone, message);
+              apiRes = await whatsappService._sendText(phone, message);
             } catch (err) {
+              sendError = err;
               console.error(`[NotificationService] Error sending to ${phone}:`, err);
               sendStatus = 'Partial';
               errorMsg = err.message || 'Send failed';
+            }
+
+            // Record in staff chat thread (Sent or Failed)
+            try {
+              await whatsappService._logMessageToThread({
+                phone,
+                message,
+                status: sendError ? 'Failed' : 'Sent',
+                errorMessage: sendError ? sendError.message : null,
+                sentBy: isReminder ? 'delay_reminder' : 'delay_alert',
+                sentByName: isReminder ? `Reminder (${slotLabel || 'Task'})` : 'Task Delay Alert',
+                bookingId: b.id,
+                maytapiResponse: apiRes,
+                isStaff: true,
+              });
+            } catch (logErr) {
+              console.warn('[NotificationService] Could not log delay message to chat thread:', logErr);
             }
           }
         } else {

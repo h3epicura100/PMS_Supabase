@@ -6,6 +6,8 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { BookingsPage } from '../features/bookings/BookingsPage';
 import { MenuFinalizePage } from '../features/menu/MenuFinalizePage';
+import { MenuChatbotPage } from '../features/menuChatbot/MenuChatbotPage';
+import { WhatsappPage } from '../features/whatsapp/WhatsappPage';
 import { KitchenPrepPage } from '../features/departments/kitchenPrep/KitchenPrepPage';
 import { TagPrintPage } from '../features/departments/tagPrint/TagPrintPage';
 import { DressPage } from '../features/departments/dress/DressPage';
@@ -55,6 +57,24 @@ export function AppRoutes() {
           element={
             <ProtectedRoute pageKey="menuFinalize">
               <MenuFinalizePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="menu-chatbot"
+          element={
+            <ProtectedRoute pageKey="menuChatbot">
+              <MenuChatbotPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="whatsapp"
+          element={
+            <ProtectedRoute pageKey="whatsapp">
+              <WhatsappPage />
             </ProtectedRoute>
           }
         />

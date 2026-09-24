@@ -45,6 +45,25 @@ export const whatsappService = {
   },
 
   /**
+   * Checks if WhatsApp Test Mode is active (VITE_WHATSAPP_TEST_MODE === 'true').
+   * In Test Mode, messages are routed EXCLUSIVELY to VITE_WHATSAPP_DEFAULT_NUMBER (917000206500)
+   * and real staff department numbers are suppressed.
+   */
+  isTestMode() {
+    const val = import.meta.env.VITE_WHATSAPP_TEST_MODE;
+    if (val === undefined || val === null) return false;
+    const clean = String(val).trim().toLowerCase();
+    return clean === 'true' || clean === '1' || clean === 'yes';
+  },
+
+  /**
+   * Returns the normalized default/tester WhatsApp number.
+   */
+  getDefaultNumber() {
+    return normalizePhoneNumber(DEFAULT_NUMBER);
+  },
+
+  /**
    * Internal helper to send a text message via Maytapi.
    */
   async _sendText(toNumber, text) {
@@ -203,6 +222,8 @@ export const whatsappService = {
   /**
    * Dispatches menu finalized WhatsApp notifications to all registered department user numbers (Staff & Admin)
    * plus the default fallback number.
+   * If VITE_WHATSAPP_TEST_MODE=true, sends EXCLUSIVELY to VITE_WHATSAPP_DEFAULT_NUMBER (917000206500)
+   * and suppresses real staff numbers.
    * Attaches the file directly with the details message as a single WhatsApp message.
    */
   async sendMenuFinalizedNotification(booking, attachmentPath, attachmentName, remarks) {
@@ -216,43 +237,48 @@ export const whatsappService = {
       };
     }
 
-    // 1. Fetch all registered user phone numbers (Staff & Admin) from authService / database
     const recipientSet = new Set();
+    const isTest = this.isTestMode();
 
-    try {
-      const users = await authService.loadUsers();
-      if (users && Array.isArray(users)) {
-        users.forEach(u => {
-          const rawNum = u.whatsapp_number || u.whatsappNumber;
-          if (rawNum) {
-            const formatted = normalizePhoneNumber(rawNum);
-            if (formatted) {
-              recipientSet.add(formatted);
-              console.log(`[WhatsApp Service] Recipient added: ${formatted} (User: ${u.display_name || u.name || u.id}, Role: ${u.role || 'staff'})`);
-            }
-          }
-        });
-      }
-    } catch (err) {
-      console.warn('[WhatsApp Service] Could not fetch users via authService:', err);
+    if (isTest) {
+      console.info(`[WhatsApp Service] TEST MODE ACTIVE (VITE_WHATSAPP_TEST_MODE=true): Suppressing staff numbers. Sending only to tester number (${DEFAULT_NUMBER}).`);
+    } else {
+      // 1. Fetch all registered user phone numbers (Staff & Admin) from authService / database
       try {
-        const { data: dbUsers } = await supabase
-          .from('pms_users')
-          .select('id, display_name, role, whatsapp_number')
-          .not('whatsapp_number', 'is', null);
-
-        if (dbUsers && Array.isArray(dbUsers)) {
-          dbUsers.forEach(u => {
-            const formatted = normalizePhoneNumber(u.whatsapp_number);
-            if (formatted) recipientSet.add(formatted);
+        const users = await authService.loadUsers();
+        if (users && Array.isArray(users)) {
+          users.forEach(u => {
+            const rawNum = u.whatsapp_number || u.whatsappNumber;
+            if (rawNum) {
+              const formatted = normalizePhoneNumber(rawNum);
+              if (formatted) {
+                recipientSet.add(formatted);
+                console.log(`[WhatsApp Service] Recipient added: ${formatted} (User: ${u.display_name || u.name || u.id}, Role: ${u.role || 'staff'})`);
+              }
+            }
           });
         }
-      } catch (dbErr) {
-        console.warn('[WhatsApp Service] Database query fallback failed:', dbErr);
+      } catch (err) {
+        console.warn('[WhatsApp Service] Could not fetch users via authService:', err);
+        try {
+          const { data: dbUsers } = await supabase
+            .from('pms_users')
+            .select('id, display_name, role, whatsapp_number')
+            .not('whatsapp_number', 'is', null);
+
+          if (dbUsers && Array.isArray(dbUsers)) {
+            dbUsers.forEach(u => {
+              const formatted = normalizePhoneNumber(u.whatsapp_number);
+              if (formatted) recipientSet.add(formatted);
+            });
+          }
+        } catch (dbErr) {
+          console.warn('[WhatsApp Service] Database query fallback failed:', dbErr);
+        }
       }
     }
 
-    // 2. Always include the default configured number
+    // 2. Always include the default configured tester number
     const defaultFormatted = normalizePhoneNumber(DEFAULT_NUMBER);
     if (defaultFormatted) {
       recipientSet.add(defaultFormatted);
@@ -309,13 +335,29 @@ export const whatsappService = {
     // 6. Send as a single message: Media with message caption (or Text if no media)
     const results = await Promise.allSettled(
       recipients.map(async (phone) => {
+        let apiRes = null;
         if (publicMediaUrl) {
           // Single message: document attachment with the full event details as caption
-          await this._sendMedia(phone, publicMediaUrl, message);
+          apiRes = await this._sendMedia(phone, publicMediaUrl, message);
         } else {
           // Fallback if no media attachment
-          await this._sendText(phone, message);
+          apiRes = await this._sendText(phone, message);
         }
+
+        // Record successful dispatch into staff chat thread
+        await this._logMessageToThread({
+          phone,
+          message,
+          mediaUrl: publicMediaUrl,
+          mediaName: attachmentName || 'Menu.pdf',
+          mediaType: 'application/pdf',
+          status: 'Sent',
+          sentBy: 'menu_finalize',
+          sentByName: 'Menu Finalize',
+          bookingId: booking?.id || null,
+          maytapiResponse: apiRes,
+          isStaff: true,
+        });
 
         return { phone, success: true };
       })
@@ -326,13 +368,30 @@ export const whatsappService = {
     const errors = [];
 
     results.forEach((res, index) => {
+      const phone = recipients[index];
       if (res.status === 'fulfilled') {
         sentCount++;
       } else {
         failedCount++;
+        const errMsg = res.reason?.message || 'Unknown send error';
         errors.push({
-          number: recipients[index],
-          error: res.reason?.message || 'Unknown send error',
+          number: phone,
+          error: errMsg,
+        });
+
+        // Record failed dispatch into staff chat thread
+        this._logMessageToThread({
+          phone,
+          message,
+          mediaUrl: publicMediaUrl,
+          mediaName: attachmentName || 'Menu.pdf',
+          mediaType: 'application/pdf',
+          status: 'Failed',
+          errorMessage: errMsg,
+          sentBy: 'menu_finalize',
+          sentByName: 'Menu Finalize',
+          bookingId: booking?.id || null,
+          isStaff: true,
         });
       }
     });
@@ -357,7 +416,431 @@ export const whatsappService = {
       sent: sentCount,
       failed: failedCount,
       recipients: recipients.length,
+      isTestMode: isTest,
       errors,
     };
   },
+
+  /**
+   * Records any message into pms_wa_contacts, pms_wa_conversations, and pms_wa_messages.
+   */
+  async _logMessageToThread({
+    phone,
+    message = '',
+    mediaUrl = null,
+    mediaName = null,
+    mediaType = null,
+    status = 'Sent',
+    errorMessage = null,
+    sentBy = 'system',
+    sentByName = 'System',
+    bookingId = null,
+    maytapiResponse = null,
+    displayName = null,
+    userId = null,
+    isStaff = true,
+  }) {
+    const cleanPhone = normalizePhoneNumber(phone);
+    if (!cleanPhone || (!message && !mediaUrl)) return null;
+
+    const textContent = (message || '').trim();
+    const summaryText = textContent || (mediaName ? `📎 ${mediaName}` : '📎 Attachment');
+
+    try {
+      // 1. Get or create Contact in pms_wa_contacts
+      let contact;
+      const { data: existingContact } = await supabase
+        .from('pms_wa_contacts')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+
+      if (existingContact) {
+        contact = existingContact;
+        if (displayName && (!contact.display_name || contact.display_name === cleanPhone)) {
+          await supabase.from('pms_wa_contacts').update({ display_name: displayName }).eq('id', contact.id);
+        }
+      } else {
+        const { data: newContact, error: cErr } = await supabase
+          .from('pms_wa_contacts')
+          .insert([{
+            phone: cleanPhone,
+            display_name: displayName || cleanPhone,
+            user_id: userId || null,
+            is_staff: Boolean(isStaff),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }])
+          .select()
+          .single();
+        if (!cErr && newContact) contact = newContact;
+      }
+
+      if (!contact) return null;
+
+      // 2. Get or create Conversation in pms_wa_conversations
+      let conversation;
+      const { data: existingConv } = await supabase
+        .from('pms_wa_conversations')
+        .select('*')
+        .eq('contact_id', contact.id)
+        .maybeSingle();
+
+      if (existingConv) {
+        conversation = existingConv;
+      } else {
+        const { data: newConv, error: convErr } = await supabase
+          .from('pms_wa_conversations')
+          .insert([{
+            contact_id: contact.id,
+            last_message: summaryText,
+            last_message_at: new Date().toISOString(),
+            last_message_status: status || 'Sent',
+            message_count: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }])
+          .select()
+          .single();
+        if (!convErr && newConv) conversation = newConv;
+      }
+
+      if (!conversation) return null;
+
+      // 3. Save message record in pms_wa_messages
+      const { data: msgData, error: mErr } = await supabase
+        .from('pms_wa_messages')
+        .insert([{
+          conversation_id: conversation.id,
+          contact_id: contact.id,
+          message: textContent,
+          direction: 'outgoing',
+          media_url: mediaUrl || null,
+          media_name: mediaName || null,
+          media_type: mediaType || null,
+          status: status || 'Sent',
+          error_message: errorMessage || null,
+          sent_by: sentBy,
+          sent_by_name: sentByName,
+          sent_at: new Date().toISOString(),
+          booking_id: bookingId || null,
+          maytapi_response: maytapiResponse || null,
+        }])
+        .select()
+        .single();
+
+      if (mErr) {
+        console.warn('[WhatsApp Service] Could not insert pms_wa_messages row:', mErr);
+      }
+
+      // 4. Update conversation summary
+      await supabase
+        .from('pms_wa_conversations')
+        .update({
+          last_message: summaryText,
+          last_message_at: new Date().toISOString(),
+          last_message_status: status || 'Sent',
+          message_count: (conversation.message_count || 0) + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', conversation.id);
+
+      return { contact, conversation, message: msgData };
+    } catch (err) {
+      console.warn('[WhatsApp Service] Error logging message to thread:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Sends a direct freeform WhatsApp message to a specific contact and records it in Supabase tables.
+   */
+  async sendDirectMessage({
+    phone,
+    message = '',
+    mediaUrl = null,
+    mediaName = null,
+    mediaType = null,
+    displayName = null,
+    userId = null,
+    isStaff = false,
+    sentBy = null,
+    sentByName = null,
+    bookingId = null,
+  }) {
+    if (!this.isConfigured()) {
+      throw new Error('Maytapi WhatsApp credentials are not configured in environment settings.');
+    }
+
+    if (!message?.trim() && !mediaUrl) {
+      throw new Error('Please provide either a message or an attachment to send.');
+    }
+
+    const cleanPhone = normalizePhoneNumber(phone);
+    if (!cleanPhone) {
+      throw new Error(`Invalid phone number: ${phone}`);
+    }
+
+    // 1. Get or create Contact in pms_wa_contacts
+    let contact;
+    try {
+      const { data: existingContact } = await supabase
+        .from('pms_wa_contacts')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+
+      if (existingContact) {
+        contact = existingContact;
+        // Update name or user_id if newly specified
+        const updates = {};
+        if (displayName && (!contact.display_name || contact.display_name === cleanPhone)) {
+          updates.display_name = displayName;
+        }
+        if (userId && !contact.user_id) {
+          updates.user_id = userId;
+        }
+        if (isStaff !== undefined && contact.is_staff !== isStaff) {
+          updates.is_staff = isStaff;
+        }
+        if (Object.keys(updates).length > 0) {
+          updates.updated_at = new Date().toISOString();
+          const { data: updated } = await supabase
+            .from('pms_wa_contacts')
+            .update(updates)
+            .eq('id', contact.id)
+            .select()
+            .single();
+          if (updated) contact = updated;
+        }
+      } else {
+        const { data: newContact, error: cErr } = await supabase
+          .from('pms_wa_contacts')
+          .insert([{
+            phone: cleanPhone,
+            display_name: displayName || cleanPhone,
+            user_id: userId || null,
+            is_staff: Boolean(isStaff),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }])
+          .select()
+          .single();
+        if (cErr) throw cErr;
+        contact = newContact;
+      }
+    } catch (cErr) {
+      console.error('[WhatsApp Service] Contact error:', cErr);
+      throw new Error(`Failed to initialize contact: ${cErr.message}`);
+    }
+
+    // 2. Get or create Conversation in pms_wa_conversations
+    let conversation;
+    try {
+      const { data: existingConv } = await supabase
+        .from('pms_wa_conversations')
+        .select('*')
+        .eq('contact_id', contact.id)
+        .maybeSingle();
+
+      if (existingConv) {
+        conversation = existingConv;
+      } else {
+        const { data: newConv, error: convErr } = await supabase
+          .from('pms_wa_conversations')
+          .insert([{
+            contact_id: contact.id,
+            last_message: message.trim(),
+            last_message_at: new Date().toISOString(),
+            last_message_status: 'Pending',
+            message_count: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }])
+          .select()
+          .single();
+        if (convErr) throw convErr;
+        conversation = newConv;
+      }
+    } catch (convErr) {
+      console.error('[WhatsApp Service] Conversation error:', convErr);
+      throw new Error(`Failed to initialize conversation: ${convErr.message}`);
+    }
+
+    // 3. Determine target phone for Maytapi API (respecting Test Mode)
+    const isTest = this.isTestMode();
+    const actualApiNumber = isTest ? this.getDefaultNumber() : cleanPhone;
+
+    console.log(`[WhatsApp Service] Sending direct message to ${cleanPhone} (API recipient: ${actualApiNumber}, TestMode: ${isTest}, Media: ${Boolean(mediaUrl)})`);
+
+    let apiResponse = null;
+    let sendError = null;
+
+    try {
+      if (mediaUrl) {
+        apiResponse = await this._sendMedia(actualApiNumber, mediaUrl, message ? message.trim() : '');
+      } else {
+        apiResponse = await this._sendText(actualApiNumber, message.trim());
+      }
+    } catch (err) {
+      sendError = err;
+      console.error('[WhatsApp Service] Direct message send failed:', err);
+    }
+
+    const messageStatus = sendError ? 'Failed' : 'Sent';
+    const errorMessage = sendError ? (sendError.message || 'Send error') : null;
+
+    // 4. Save message log in pms_wa_messages & update conversation
+    const logged = await this._logMessageToThread({
+      phone: cleanPhone,
+      message: message ? message.trim() : '',
+      mediaUrl,
+      mediaName,
+      mediaType,
+      status: messageStatus,
+      errorMessage,
+      sentBy,
+      sentByName,
+      bookingId,
+      maytapiResponse: apiResponse,
+      displayName,
+      userId,
+      isStaff,
+    });
+
+    if (sendError) {
+      throw new Error(`Failed to deliver message: ${sendError.message}`);
+    }
+
+    return {
+      success: true,
+      status: 'Sent',
+      contactId: logged?.contact?.id || contact.id,
+      conversationId: logged?.conversation?.id || conversation.id,
+      message: logged?.message,
+    };
+  },
+
+  /**
+   * Retries sending a failed message by ID.
+   */
+  async retryDirectMessage(messageId) {
+    if (!messageId) throw new Error('messageId is required');
+
+    // Fetch message and contact
+    const { data: msg, error: fetchErr } = await supabase
+      .from('pms_wa_messages')
+      .select('*, contact:pms_wa_contacts(*)')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchErr || !msg) {
+      throw new Error('Message not found to retry');
+    }
+
+    const cleanPhone = normalizePhoneNumber(msg.contact?.phone);
+    if (!cleanPhone) {
+      throw new Error('Invalid contact phone on message');
+    }
+
+    const isTest = this.isTestMode();
+    const actualApiNumber = isTest ? this.getDefaultNumber() : cleanPhone;
+
+    let apiResponse = null;
+    let sendError = null;
+
+    try {
+      if (msg.media_url) {
+        apiResponse = await this._sendMedia(actualApiNumber, msg.media_url, msg.message || '');
+      } else {
+        apiResponse = await this._sendText(actualApiNumber, msg.message || '');
+      }
+    } catch (err) {
+      sendError = err;
+    }
+
+    const newStatus = sendError ? 'Failed' : 'Sent';
+    const newErrMsg = sendError ? sendError.message : null;
+
+    // Update message
+    const { data: updatedMsg } = await supabase
+      .from('pms_wa_messages')
+      .update({
+        status: newStatus,
+        error_message: newErrMsg,
+        sent_at: new Date().toISOString(),
+        maytapi_response: apiResponse || msg.maytapi_response,
+      })
+      .eq('id', messageId)
+      .select()
+      .single();
+
+    // Update conversation
+    await supabase
+      .from('pms_wa_conversations')
+      .update({
+        last_message_status: newStatus,
+        last_message_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', msg.conversation_id);
+
+    if (sendError) {
+      throw new Error(`Retry failed: ${sendError.message}`);
+    }
+
+    return updatedMsg;
+  },
+
+  /**
+   * Retrieves the currently configured webhook from Maytapi.
+   */
+  async getWebhookConfig() {
+    if (!this.isConfigured()) return { webhook: null };
+    try {
+      const endpoint = `https://api.maytapi.com/api/${MAYTAPI_PRODUCT_ID.trim()}/${MAYTAPI_PHONE_ID.trim()}/config`;
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'x-maytapi-key': MAYTAPI_TOKEN.trim(),
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      return data || {};
+    } catch (err) {
+      console.warn('[WhatsApp Service] Could not fetch Maytapi webhook config:', err);
+      return { error: err.message };
+    }
+  },
+
+  /**
+   * Registers a webhook URL with Maytapi.
+   */
+  async registerWebhook(webhookUrl) {
+    if (!this.isConfigured()) {
+      throw new Error('Maytapi credentials are not configured in environment settings.');
+    }
+
+    const targetUrl = webhookUrl || `${import.meta.env.VITE_SUPABASE_URL || 'https://hfvbyktusslocxsblenu.supabase.co'}/functions/v1/whatsapp-webhook`;
+    const endpoint = `https://api.maytapi.com/api/${MAYTAPI_PRODUCT_ID.trim()}/${MAYTAPI_PHONE_ID.trim()}/config`;
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-maytapi-key': MAYTAPI_TOKEN.trim(),
+      },
+      body: JSON.stringify({
+        webhook: targetUrl,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+      throw new Error(data.message || data.error || `HTTP ${res.status}: Failed to register webhook`);
+    }
+
+    return { success: true, webhook: targetUrl, data };
+  },
 };
+

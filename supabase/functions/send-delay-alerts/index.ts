@@ -74,6 +74,102 @@ function getISTDateParts(): { istDateStr: string; istHour: number; istMinute: nu
   return { istDateStr, istHour, istMinute };
 }
 
+async function logAlertToChatThread(
+  supabase: any,
+  phone: string,
+  message: string,
+  status: string,
+  sendType: string,
+  bookingId: string
+) {
+  try {
+    const cleanPhone = normalizePhoneNumber(phone);
+    if (!cleanPhone) return;
+
+    // 1. Get or create Contact
+    let contactId: string | null = null;
+    const { data: existingContact } = await supabase
+      .from("pms_wa_contacts")
+      .select("id")
+      .eq("phone", cleanPhone)
+      .maybeSingle();
+
+    if (existingContact?.id) {
+      contactId = existingContact.id;
+    } else {
+      const { data: newContact } = await supabase
+        .from("pms_wa_contacts")
+        .insert([{
+          phone: cleanPhone,
+          display_name: cleanPhone,
+          is_staff: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }])
+        .select("id")
+        .maybeSingle();
+      if (newContact?.id) contactId = newContact.id;
+    }
+
+    if (!contactId) return;
+
+    // 2. Get or create Conversation
+    let conversationId: string | null = null;
+    const { data: existingConv } = await supabase
+      .from("pms_wa_conversations")
+      .select("id, message_count")
+      .eq("contact_id", contactId)
+      .maybeSingle();
+
+    if (existingConv?.id) {
+      conversationId = existingConv.id;
+    } else {
+      const { data: newConv } = await supabase
+        .from("pms_wa_conversations")
+        .insert([{
+          contact_id: contactId,
+          last_message: message.trim(),
+          last_message_at: new Date().toISOString(),
+          last_message_status: status || "Sent",
+          message_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }])
+        .select("id, message_count")
+        .maybeSingle();
+      if (newConv?.id) conversationId = newConv.id;
+    }
+
+    if (!conversationId) return;
+
+    // 3. Insert Message
+    await supabase.from("pms_wa_messages").insert([{
+      conversation_id: conversationId,
+      contact_id: contactId,
+      message: message.trim(),
+      status: status || "Sent",
+      sent_by: sendType === "scheduled_reminder" ? "delay_reminder" : "delay_alert",
+      sent_by_name: sendType === "scheduled_reminder" ? "Delay Reminder" : "Task Delay Alert",
+      sent_at: new Date().toISOString(),
+      booking_id: bookingId || null,
+    }]);
+
+    // 4. Update Conversation
+    await supabase
+      .from("pms_wa_conversations")
+      .update({
+        last_message: message.trim(),
+        last_message_at: new Date().toISOString(),
+        last_message_status: status || "Sent",
+        message_count: ((existingConv?.message_count ?? 0) + 1),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", conversationId);
+  } catch (e) {
+    console.warn("[DelayAlerts] Failed to log alert to chat thread:", e);
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -89,6 +185,18 @@ serve(async (req: Request) => {
     const maytapiProductId = Deno.env.get("MAYTAPI_PRODUCT_ID")?.trim() ?? "";
     const maytapiPhoneId = Deno.env.get("MAYTAPI_PHONE_ID")?.trim() ?? "";
     const maytapiToken = Deno.env.get("MAYTAPI_TOKEN")?.trim() ?? "";
+
+    const defaultNumber = normalizePhoneNumber(
+      Deno.env.get("WHATSAPP_DEFAULT_NUMBER") ??
+      Deno.env.get("VITE_WHATSAPP_DEFAULT_NUMBER") ??
+      "917000206500"
+    );
+
+    const testModeRaw =
+      Deno.env.get("WHATSAPP_TEST_MODE") ??
+      Deno.env.get("VITE_WHATSAPP_TEST_MODE") ??
+      "false";
+    const isTestMode = ["true", "1", "yes"].includes(testModeRaw.trim().toLowerCase());
 
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
@@ -314,11 +422,13 @@ serve(async (req: Request) => {
         }
       }
 
-      if (!sendType) continue;
+      let recipients = deptRecipientsMap.get(task.deptKey) || [];
+      if (isTestMode) {
+        recipients = defaultNumber ? [defaultNumber] : [];
+      }
 
-      const recipients = deptRecipientsMap.get(task.deptKey) || [];
       if (recipients.length === 0) {
-        console.warn(`[DelayAlerts] No phone numbers mapped for department: ${task.deptKey}`);
+        console.warn(`[DelayAlerts] No phone numbers mapped for department/tester: ${task.deptKey}`);
         continue;
       }
 
@@ -362,24 +472,45 @@ serve(async (req: Request) => {
         let errorMsg: string | null = null;
 
         if (maytapiConfigured) {
-          const phonePromises = alert.recipients.map((phone) =>
-            fetch(sendEndpoint, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-maytapi-key": maytapiToken,
-              },
-              body: JSON.stringify({
-                to_number: phone,
-                type: "text",
-                message: alert.message,
-              }),
-            }).then((res) => res.json().catch(() => ({})))
-          );
+          const phonePromises = alert.recipients.map(async (phone) => {
+            let resStatus = "Sent";
+            try {
+              const res = await fetch(sendEndpoint, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-maytapi-key": maytapiToken,
+                },
+                body: JSON.stringify({
+                  to_number: phone,
+                  type: "text",
+                  message: alert.message,
+                }),
+              });
+              const json = await res.json().catch(() => ({}));
+              if (!res.ok || json.success === false) {
+                resStatus = "Failed";
+              }
+            } catch (_) {
+              resStatus = "Failed";
+            }
+
+            // Record into chat thread
+            await logAlertToChatThread(
+              supabase,
+              phone,
+              alert.message,
+              resStatus,
+              alert.sendType,
+              alert.task.bookingId
+            );
+
+            return { phone, success: resStatus === "Sent" };
+          });
 
           const phoneResults = await Promise.allSettled(phonePromises);
           const failed = phoneResults.some(
-            (r) => r.status === "rejected" || (r.status === "fulfilled" && r.value?.success === false)
+            (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value?.success)
           );
           if (failed) {
             sendStatus = "Partial";

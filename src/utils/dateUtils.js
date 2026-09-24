@@ -45,3 +45,15 @@ export function formatDateTimeDisplay(dateString) {
   }
 }
 
+export function formatTimeDisplay(dateString) {
+  if (!dateString) return '—';
+  try {
+    const date = typeof dateString === 'string' && dateString.includes('T') ? parseISO(dateString) : new Date(dateString);
+    if (!isValid(date)) return dateString;
+    return format(date, 'hh:mm a');
+  } catch (e) {
+    return dateString;
+  }
+}
+
+

@@ -180,13 +180,13 @@ export function DepartmentModal({ isOpen, onClose, booking, deptConfig, onViewMe
               label="Attachment Proof (Photos / Videos / Docs)"
               folderPath={folderPath}
               required={true}
-              maxFiles={10}
+              maxFiles={30}
               maxSizeMb={50}
               attachments={attachments}
               onAddAttachment={handleAddAttachment}
               onDeleteAttachment={handleDeleteAttachment}
               onUploadingChange={setIsUploading}
-              hint="Upload photos, videos of completed work, or receipts (up to 50 MB each, max 10 files)"
+              hint="Upload photos, videos of completed work, or receipts (up to 50 MB each, max 30 files)"
             />
           </div>
         )}
