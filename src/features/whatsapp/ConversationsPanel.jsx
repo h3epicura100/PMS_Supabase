@@ -13,6 +13,23 @@ import {
   Filter,
 } from 'lucide-react';
 
+function formatLastMessageSnippet(lastMsg) {
+  if (!lastMsg) return 'No messages yet';
+  const trimmed = String(lastMsg).trim();
+  if (
+    /^\[(IMAGE|DOCUMENT|VIDEO|AUDIO|VOICE|PTT|MEDIA)\]/i.test(trimmed) ||
+    /false_\d+@lid_/i.test(trimmed) ||
+    /@s\.whatsapp\.net/i.test(trimmed) ||
+    /@lid_/i.test(trimmed)
+  ) {
+    if (/image|\.jpg|\.jpeg|\.png|\.webp/i.test(trimmed)) return '📷 Photo';
+    if (/video|\.mp4/i.test(trimmed)) return '🎥 Video';
+    if (/audio|voice|ptt|\.mp3|\.ogg/i.test(trimmed)) return '🎵 Voice message';
+    return '📎 Attachment';
+  }
+  return trimmed;
+}
+
 export function ConversationsPanel({
   conversations = [],
   selectedConversationId,
@@ -56,9 +73,9 @@ export function ConversationsPanel({
   };
 
   return (
-    <div className="h-full flex flex-col bg-white border-r border-slate-200">
+    <div className="h-full flex flex-col bg-white border-r border-slate-200 min-h-0 overflow-hidden">
       {/* Panel Top Header */}
-      <div className="p-4 border-b border-slate-200 space-y-3">
+      <div className="p-3 sm:p-4 border-b border-slate-200 space-y-2.5 sm:space-y-3 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-emerald-600" />
@@ -129,7 +146,7 @@ export function ConversationsPanel({
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 min-h-0">
         {loading && conversations.length === 0 ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading chats...</div>
         ) : filteredConversations.length === 0 ? (
@@ -194,7 +211,7 @@ export function ConversationsPanel({
 
                   <div className="flex items-center justify-between gap-2">
                     <p className={`text-[11px] truncate flex-1 ${unreadCount > 0 ? 'font-semibold text-slate-900' : 'text-slate-500 font-normal'}`}>
-                      {conv.last_message || 'No messages yet'}
+                      {formatLastMessageSnippet(conv.last_message)}
                     </p>
 
                     {/* Unread badge or Status icon */}

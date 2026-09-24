@@ -119,10 +119,18 @@ serve(async (req: Request) => {
     ) {
       mediaUrl = msgData.url || msgData.media?.url || null;
       mediaType = msgData.mime || (msgData.type === "image" ? "image/jpeg" : msgData.type);
-      mediaName = msgData.filename || (msgData.type === "image" ? "Photo.jpg" : "Attachment");
-      if (!messageText) {
-        messageText = `[${msgData.type.toUpperCase()}] ${mediaName}`;
+      
+      // Clean up internal WhatsApp filenames (e.g. false_20701792747652@lid_ACC1E77D1D1A00574790AA881D230BA4.jpeg)
+      let rawFilename = msgData.filename || (msgData.type === "image" ? "Photo.jpg" : "Attachment");
+      if (/^false_\d+@lid_[a-zA-Z0-9]+/i.test(rawFilename)) {
+        const ext = rawFilename.split('.').pop() || (msgData.type === 'image' ? 'jpg' : 'pdf');
+        rawFilename = msgData.type === 'image' ? `Photo.${ext}` : `Document.${ext}`;
       }
+      mediaName = rawFilename;
+
+      // Only set messageText if user provided an actual text caption
+      const userCaption = (msgData.caption || msgData.text || "").trim();
+      messageText = userCaption;
     }
 
     const senderName =

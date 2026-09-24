@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PageContainer } from '../../components/layout/PageContainer';
 import { ConversationsPanel } from './ConversationsPanel';
-import { ConversationThread } from './ConversationThread';
+import { ConversationThread, getCleanMediaName } from './ConversationThread';
 import { NewChatModal } from './NewChatModal';
-import { WebhookModal } from './WebhookModal';
 import { supabase } from '../../services/supabase';
 import { whatsappMessagesService } from '../../services/whatsappMessagesService';
 import { whatsappService } from '../../services/whatsappService';
 import { storageService } from '../../services/storageService';
 import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'sonner';
-import { MessageSquare, Send, CheckCheck, AlertCircle, RefreshCw, Plus, Users, Webhook } from 'lucide-react';
+import { MessageSquare, AlertCircle, RefreshCw } from 'lucide-react';
 
 export function WhatsappPage() {
   const { currentUser } = useAuth();
@@ -23,30 +21,25 @@ export function WhatsappPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
-  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
 
   // Load conversation list
-  const loadConversations = useCallback(async (autoSelectFirst = false) => {
+  const loadConversations = useCallback(async () => {
     setLoadingConversations(true);
     try {
       const data = await whatsappMessagesService.getConversations();
       setConversations(data);
-
-      if (autoSelectFirst && data.length > 0 && !selectedConvId) {
-        setSelectedConvId(data[0].id);
-      }
     } catch (err) {
       console.error('Failed to load conversations:', err);
       toast.error('Could not load WhatsApp conversations.');
     } finally {
       setLoadingConversations(false);
     }
-  }, [selectedConvId]);
-
-  // Initial load
-  useEffect(() => {
-    loadConversations(true);
   }, []);
+
+  // Initial load - do not auto select any chat
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
 
   // Load thread messages whenever selected conversation changes
   const loadThread = useCallback(async (convId) => {
@@ -110,7 +103,10 @@ export function WhatsappPage() {
           // Trigger visual toast notification on new incoming reply
           if (payload.eventType === 'INSERT' && newMsg.direction === 'incoming') {
             const sender = newMsg.sent_by_name || 'Contact';
-            const snippet = newMsg.message || (newMsg.media_name ? `Attachment: ${newMsg.media_name}` : 'Received media');
+            let snippet = newMsg.message || '';
+            if (/@lid_|@s\.whatsapp\.net|^false_\d+|^true_\d+|^\[(IMAGE|DOCUMENT|VIDEO|AUDIO)\]/i.test(snippet) || !snippet) {
+              snippet = newMsg.media_name ? `Attachment: ${getCleanMediaName(newMsg.media_name, newMsg.media_type)}` : 'Received media';
+            }
             toast.info(`WhatsApp reply from ${sender}: "${snippet.slice(0, 60)}"`, {
               duration: 5000,
             });
@@ -224,125 +220,107 @@ export function WhatsappPage() {
   const totalUnread = conversations.reduce((sum, c) => sum + (Number(c.unread_count) || 0), 0);
 
   return (
-    <PageContainer>
-      <div className="space-y-4">
-        {/* Top Header & Overview */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-2 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-slate-900 leading-tight">
-                  WhatsApp Messenger
-                </h1>
-                <p className="text-xs text-slate-500">
-                  Direct WhatsApp messaging, live incoming replies, and delivery tracking
-                </p>
-              </div>
+    <div className="h-full w-full flex flex-col min-h-0 overflow-hidden space-y-2 sm:space-y-3">
+      {/* Top Header & Overview */}
+      <div
+        className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pb-2 border-b border-slate-200 shrink-0 ${
+          selectedConvId ? 'hidden lg:flex' : 'flex'
+        }`}
+      >
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-          </div>
-
-          {/* Quick Metrics & Actions */}
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-600 shadow-2xs">
-              <div>
-                <span className="text-slate-400">Total Chats: </span>
-                <span className="font-bold text-slate-900">{totalChats}</span>
-              </div>
-              <div className="h-3 w-px bg-slate-200" />
-              <div>
-                <span className="text-slate-400">Staff: </span>
-                <span className="font-bold text-blue-600">{staffCount}</span>
-              </div>
-              {totalUnread > 0 && (
-                <>
-                  <div className="h-3 w-px bg-slate-200" />
-                  <div className="flex items-center gap-1 text-emerald-600 font-bold">
-                    <span>{totalUnread} unread</span>
-                  </div>
-                </>
-              )}
-              {failedCount > 0 && (
-                <>
-                  <div className="h-3 w-px bg-slate-200" />
-                  <div className="flex items-center gap-1 text-rose-600 font-bold">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>{failedCount} failed</span>
-                  </div>
-                </>
-              )}
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 leading-tight">
+                WhatsApp Messenger
+              </h1>
+              <p className="text-xs text-slate-500">
+                Direct WhatsApp messaging, live incoming replies, and delivery tracking
+              </p>
             </div>
-
-            {/* Webhook Configuration Button */}
-            <button
-              type="button"
-              onClick={() => setIsWebhookModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 shadow-2xs transition-colors"
-              title="Webhook configuration for incoming messages"
-            >
-              <Webhook className="w-4 h-4 text-emerald-600" />
-              <span className="hidden md:inline">Webhook</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                loadConversations(false);
-                if (selectedConvId) loadThread(selectedConvId);
-              }}
-              className="p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors shadow-2xs"
-              title="Refresh all"
-            >
-              <RefreshCw className={`w-4 h-4 ${loadingConversations ? 'animate-spin text-emerald-600' : ''}`} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsNewChatOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Message</span>
-            </button>
           </div>
         </div>
 
-        {/* Main Messenger Container */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden h-[calc(100vh-14rem)] min-h-[520px] flex">
-          {/* Left Panel: Conversations (hidden on small screen if a chat is active) */}
-          <div
-            className={`w-full lg:w-[380px] shrink-0 h-full ${
-              selectedConvId ? 'hidden lg:block' : 'block'
-            }`}
-          >
-            <ConversationsPanel
-              conversations={conversations}
-              selectedConversationId={selectedConvId}
-              onSelectConversation={handleSelectConversation}
-              onOpenNewChat={() => setIsNewChatOpen(true)}
-              loading={loadingConversations}
-            />
+        {/* Quick Metrics & Actions */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-600 shadow-2xs">
+            <div>
+              <span className="text-slate-400">Total Chats: </span>
+              <span className="font-bold text-slate-900">{totalChats}</span>
+            </div>
+            <div className="h-3 w-px bg-slate-200" />
+            <div>
+              <span className="text-slate-400">Staff: </span>
+              <span className="font-bold text-blue-600">{staffCount}</span>
+            </div>
+            {totalUnread > 0 && (
+              <>
+                <div className="h-3 w-px bg-slate-200" />
+                <div className="flex items-center gap-1 text-emerald-600 font-bold">
+                  <span>{totalUnread} unread</span>
+                </div>
+              </>
+            )}
+            {failedCount > 0 && (
+              <>
+                <div className="h-3 w-px bg-slate-200" />
+                <div className="flex items-center gap-1 text-rose-600 font-bold">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{failedCount} failed</span>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Right Panel: Active Thread (hidden on small screen if no chat is active) */}
-          <div
-            className={`flex-1 h-full min-w-0 ${
-              !selectedConvId ? 'hidden lg:block' : 'block'
-            }`}
+          <button
+            type="button"
+            onClick={() => {
+              loadConversations();
+              if (selectedConvId) loadThread(selectedConvId);
+            }}
+            className="p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-colors shadow-2xs"
+            title="Refresh all"
           >
-            <ConversationThread
-              conversation={selectedConversation}
-              messages={messages}
-              loading={loadingMessages}
-              sending={sending}
-              onSendMessage={handleSendMessage}
-              onRetryMessage={handleRetryMessage}
-              onRefresh={() => loadThread(selectedConvId)}
-              onBackMobile={() => setSelectedConvId(null)}
-            />
-          </div>
+            <RefreshCw className={`w-4 h-4 ${loadingConversations ? 'animate-spin text-emerald-600' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Messenger Container */}
+      <div className="flex-1 min-h-0 bg-white border border-slate-200 rounded-xl sm:rounded-2xl shadow-xs overflow-hidden flex">
+        {/* Left Panel: Conversations (hidden on small screen if a chat is active) */}
+        <div
+          className={`w-full lg:w-[380px] shrink-0 h-full flex flex-col min-h-0 ${
+            selectedConvId ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          <ConversationsPanel
+            conversations={conversations}
+            selectedConversationId={selectedConvId}
+            onSelectConversation={handleSelectConversation}
+            onOpenNewChat={() => setIsNewChatOpen(true)}
+            loading={loadingConversations}
+          />
+        </div>
+
+        {/* Right Panel: Active Thread (hidden on small screen if no chat is active) */}
+        <div
+          className={`flex-1 h-full min-w-0 flex flex-col min-h-0 ${
+            !selectedConvId ? 'hidden lg:flex' : 'flex'
+          }`}
+        >
+          <ConversationThread
+            conversation={selectedConversation}
+            messages={messages}
+            loading={loadingMessages}
+            sending={sending}
+            onSendMessage={handleSendMessage}
+            onRetryMessage={handleRetryMessage}
+            onRefresh={() => loadThread(selectedConvId)}
+            onBackMobile={() => setSelectedConvId(null)}
+          />
         </div>
       </div>
 
@@ -351,16 +329,13 @@ export function WhatsappPage() {
         isOpen={isNewChatOpen}
         onClose={() => setIsNewChatOpen(false)}
         onConversationStarted={async (convId) => {
-          await loadConversations(false);
+          await loadConversations();
           setSelectedConvId(convId);
         }}
       />
-
-      {/* Webhook Configuration Modal */}
-      <WebhookModal
-        isOpen={isWebhookModalOpen}
-        onClose={() => setIsWebhookModalOpen(false)}
-      />
-    </PageContainer>
+    </div>
   );
 }
+
+
+

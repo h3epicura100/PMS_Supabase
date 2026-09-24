@@ -1,11 +1,13 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 export function Button({
   children,
-  variant = 'default', // 'default' | 'primary' | 'ghost' | 'danger'
+  variant = 'default', // 'default' | 'primary' | 'secondary' | 'ghost' | 'danger'
   size = 'md',        // 'sm' | 'md' | 'lg'
   block = false,
   disabled = false,
+  loading = false,
   type = 'button',
   onClick,
   className = '',
@@ -15,6 +17,7 @@ export function Button({
 
   const variants = {
     default: 'bg-white border border-pms-border text-pms-text hover:border-pms-text hover:bg-slate-50 shadow-sm',
+    secondary: 'bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 shadow-sm',
     primary: 'bg-pms-primary text-white hover:bg-pms-primary-hover border border-transparent shadow-sm',
     ghost: 'bg-transparent text-pms-muted hover:bg-slate-100 hover:text-pms-text',
     danger: 'bg-white text-pms-danger border border-red-200 hover:bg-red-50 hover:border-red-300',
@@ -31,12 +34,14 @@ export function Button({
   return (
     <button
       type={type}
-      disabled={disabled}
+      disabled={disabled || loading}
       onClick={onClick}
       className={`${baseClasses} ${variants[variant] || variants.default} ${sizes[size] || sizes.md} ${widthClass} ${className}`}
       {...props}
     >
+      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
       {children}
     </button>
   );
 }
+

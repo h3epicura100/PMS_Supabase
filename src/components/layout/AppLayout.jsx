@@ -23,6 +23,8 @@ export function AppLayout() {
     }
   }
 
+  const isFullHeightPage = location.pathname === '/whatsapp' || location.pathname === '/menu-chatbot';
+
   return (
     <div className="h-screen flex bg-pms-bg overflow-hidden">
       <Sidebar
@@ -30,20 +32,27 @@ export function AppLayout() {
         onCloseMobile={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto overflow-x-hidden app-main-content">
+      <div className={`flex-1 flex flex-col min-w-0 h-screen ${isFullHeightPage ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} app-main-content`}>
         <Topbar
           title={currentNav?.label || 'Dashboard'}
           onToggleSidebar={() => setSidebarOpen(prev => !prev)}
         />
 
-        <main className="flex-1 flex flex-col justify-between min-w-0 overflow-x-hidden">
-          <PageContainer>
-            <Outlet />
-          </PageContainer>
+        <main className={`flex-1 flex flex-col min-w-0 min-h-0 ${isFullHeightPage ? 'overflow-hidden p-2 sm:p-3 lg:p-3.5' : 'justify-between overflow-x-hidden'}`}>
+          {isFullHeightPage ? (
+            <div className="w-full flex-1 flex flex-col min-h-0 overflow-hidden max-w-[1600px] mx-auto">
+              <Outlet />
+            </div>
+          ) : (
+            <PageContainer>
+              <Outlet />
+            </PageContainer>
+          )}
 
-          <Footer className="border-t border-slate-200/60 bg-white/40 mt-auto" />
+          <Footer className="border-t border-slate-200/60 bg-white/40 shrink-0 mt-auto" />
         </main>
       </div>
     </div>
   );
 }
+

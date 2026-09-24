@@ -8,6 +8,7 @@ export const Input = forwardRef(({
   required,
   optional,
   hint,
+  helperText,
   mono = false,
   className = '',
   icon: IconComponent,
@@ -16,6 +17,7 @@ export const Input = forwardRef(({
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === 'password';
   const inputType = isPassword ? (showPassword ? 'text' : 'password') : type;
+  const displayHint = hint || helperText;
 
   return (
     <div className="flex flex-col gap-1.5 w-full">
@@ -73,7 +75,7 @@ export const Input = forwardRef(({
         )}
       </div>
 
-      {hint && !error && <span className="text-[11px] text-slate-400">{hint}</span>}
+      {displayHint && !error && <span className="text-[11px] text-slate-400">{displayHint}</span>}
       {error && (
         <span className="text-xs font-medium text-red-600 flex items-center gap-1 mt-0.5">
           <span className="w-1 h-1 rounded-full bg-red-500 inline-block" />

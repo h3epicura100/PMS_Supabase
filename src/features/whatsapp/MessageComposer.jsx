@@ -178,10 +178,14 @@ export function MessageComposer({ onSendMessage, disabled = false, sending = fal
         </button>
       </div>
 
-      <div className="flex items-center justify-between mt-1.5 px-2 text-[11px] text-slate-400">
-        <span>Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px]">Enter</kbd> to send, <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px]">Shift + Enter</kbd> for new line</span>
-        <span>{text.length} chars</span>
+      <div className="flex items-center justify-between mt-1 px-1.5 text-[11px] text-slate-400">
+        <span className="hidden sm:inline">
+          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px]">Enter</kbd> to send, <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px]">Shift + Enter</kbd> for new line
+        </span>
+        <span className="sm:hidden text-[10px] text-slate-400">Direct WhatsApp</span>
+        {text.length > 0 && <span className="text-[10px] sm:text-[11px] text-slate-400 font-mono">{text.length} chars</span>}
       </div>
     </div>
   );
 }
+

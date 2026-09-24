@@ -279,14 +279,14 @@ export function NewChatModal({ isOpen, onClose, onConversationStarted }) {
               value={customPhone}
               onChange={(e) => setCustomPhone(e.target.value)}
               required
-              helperText="Indian 10-digit mobile numbers are automatically formatted with country code."
+              hint="Indian 10-digit mobile numbers are automatically formatted with country code."
             />
             <Input
               label="Contact / Customer Name"
               placeholder="e.g. Rahul Sharma"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
-              helperText="Optional name for chat thread reference."
+              hint="Optional name for chat thread reference."
             />
           </div>
         )}
@@ -298,7 +298,7 @@ export function NewChatModal({ isOpen, onClose, onConversationStarted }) {
             placeholder="e.g. BK-2026-001"
             value={bookingId}
             onChange={(e) => setBookingId(e.target.value)}
-            helperText="Associate this message conversation with a specific catering booking."
+            hint="Associate this message conversation with a specific catering booking."
           />
         </div>
 
@@ -310,7 +310,7 @@ export function NewChatModal({ isOpen, onClose, onConversationStarted }) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={3}
-            helperText={`${message.length} characters`}
+            hint={`${message.length} characters`}
           />
         </div>
 

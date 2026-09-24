@@ -6,10 +6,13 @@ export const Textarea = forwardRef(({
   required,
   optional,
   hint,
+  helperText,
   rows = 3,
   className = '',
   ...props
 }, ref) => {
+  const displayHint = hint || helperText;
+
   return (
     <div className="flex flex-col gap-1.5 w-full">
       {label && (
@@ -36,7 +39,7 @@ export const Textarea = forwardRef(({
         {...props}
       />
 
-      {hint && !error && <span className="text-[11px] text-slate-400">{hint}</span>}
+      {displayHint && !error && <span className="text-[11px] text-slate-400">{displayHint}</span>}
       {error && (
         <span className="text-xs font-medium text-red-600 flex items-center gap-1 mt-0.5">
           <span className="w-1 h-1 rounded-full bg-red-500 inline-block" />
