@@ -466,35 +466,7 @@ export const menuPdfService = {
     doc.setTextColor(...DARK_SLATE);
     doc.text('• 30% Advance at Booking Confirmation   |   • 50% 7 Days Prior to Event   |   • 20% On Final Event Conclusion', margin + 4, currentY + 9.5);
 
-    currentY += 18;
-
-    // Signatures
-    ensureSpace(22, 'ACCEPTANCE & AUTHORIZATION');
-
-    const colWidth = (contentWidth - 10) / 2;
-
-    // Company Sign
-    doc.setDrawColor(...BORDER_COLOR);
-    doc.line(margin, currentY + 12, margin + colWidth, currentY + 12);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...NAVY);
-    doc.text('FOR H3 CATERING & HOSPITALITY', margin, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.8);
-    doc.setTextColor(...MUTED_SLATE);
-    doc.text('Authorized Signatory & Stamp', margin, currentY + 16);
-
-    // Client Sign
-    doc.line(margin + colWidth + 10, currentY + 12, pageWidth - margin, currentY + 12);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...NAVY);
-    doc.text('CLIENT ACCEPTANCE', margin + colWidth + 10, currentY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.8);
-    doc.setTextColor(...MUTED_SLATE);
-    doc.text(`Signature of Host (${clientName}) / Date`, margin + colWidth + 10, currentY + 16);
+    currentY += 14;
 
     // ==========================================
     // ADD RUNNING FOOTERS TO ALL PAGES
