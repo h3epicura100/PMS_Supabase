@@ -66,6 +66,7 @@ export function AttachmentUploader({
   const [uploadingList, setUploadingList] = useState([]); // [{ id, name, size, type, status, error }]
   const [previewMedia, setPreviewMedia] = useState(null); // { url, type, title }
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState(null); // { idx, att }
   const fileInputRef = useRef(null);
   const generatedId = useId();
   const inputId = `file_input_${generatedId.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -344,44 +345,64 @@ export function AttachmentUploader({
                     return (
                       <div
                         key={att.path || idx}
-                        className="flex items-center justify-between gap-2 p-2 bg-white border border-slate-200 rounded-lg shadow-2xs hover:border-slate-300 transition-colors"
+                        className="flex items-center justify-between gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:border-slate-300 transition-all group"
                       >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <FileTypeIcon category={cat} />
+                        {/* File details & interactive name */}
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg flex-shrink-0">
+                            <FileTypeIcon category={cat} className="w-4 h-4" />
+                          </div>
                           <div className="min-w-0 flex-1">
-                            <div className="text-xs font-semibold text-slate-800 truncate" title={att.name || 'Attachment'}>
+                            <button
+                              type="button"
+                              onClick={() => handleViewOrPreview(att)}
+                              disabled={isLoadingPreview}
+                              className="text-left font-semibold text-xs text-slate-800 hover:text-pms-accent truncate block max-w-full cursor-pointer transition-colors"
+                              title={`Click to preview ${att.name || 'Attachment'}`}
+                            >
                               {att.name || 'Attachment'}
-                            </div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                            </button>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                               {att.size ? <span>{formatBytes(att.size)}</span> : null}
                               {cat === 'video' && <span className="font-semibold text-indigo-600">Video Proof</span>}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Actions: View button on the left of actions, separated by divider from isolated Delete button */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
                           <button
                             type="button"
                             disabled={isLoadingPreview}
                             onClick={() => handleViewOrPreview(att)}
-                            className="p-1 text-slate-500 hover:text-pms-accent hover:bg-slate-100 rounded cursor-pointer transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 hover:text-blue-900 border border-blue-200/80 rounded-lg cursor-pointer transition-colors shadow-2xs"
                             title={cat === 'image' || cat === 'video' ? 'Preview media' : 'View / Download file'}
                           >
                             {cat === 'image' || cat === 'video' ? (
-                              <Eye className="w-3.5 h-3.5" />
+                              <>
+                                <Eye className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Preview</span>
+                              </>
                             ) : (
-                              <ExternalLink className="w-3.5 h-3.5" />
+                              <>
+                                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                                <span>View</span>
+                              </>
                             )}
                           </button>
+
                           {onDeleteAttachment && !disabled && (
-                            <button
-                              type="button"
-                              onClick={() => onDeleteAttachment(idx, att)}
-                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded cursor-pointer transition-colors"
-                              title="Delete attachment"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <>
+                              <div className="h-4 w-px bg-slate-200 mx-0.5" />
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteTarget({ idx, att })}
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 border border-transparent rounded-lg cursor-pointer transition-all"
+                                title="Delete attachment"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
@@ -391,6 +412,72 @@ export function AttachmentUploader({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {confirmDeleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-red-100 text-red-600 rounded-xl flex-shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900">Delete Attachment?</h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Are you sure you want to remove this file? This will remove it from the department task.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteTarget(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* File Detail Preview Card */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-3">
+              <FileTypeIcon category={getFileCategory(confirmDeleteTarget.att)} className="w-5 h-5" />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold text-slate-800 truncate">
+                  {confirmDeleteTarget.att.name || 'Attachment'}
+                </div>
+                {confirmDeleteTarget.att.size ? (
+                  <div className="text-[10px] text-slate-400">
+                    {formatBytes(confirmDeleteTarget.att.size)}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteTarget(null)}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const { idx, att } = confirmDeleteTarget;
+                  setConfirmDeleteTarget(null);
+                  if (onDeleteAttachment) {
+                    onDeleteAttachment(idx, att);
+                  }
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:bg-red-800 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Yes, Delete Attachment</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -435,3 +522,4 @@ export function AttachmentUploader({
     </div>
   );
 }
+

@@ -32,15 +32,15 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
     ? initialValues.eventSchedule.map((s, idx) => ({
         id: s.id || String(idx),
         date: s.date || defaultStartDate || '',
-        timeLabel: s.timeLabel || 'Lunch',
-        guestCount: s.guestCount || 100,
+        timeLabel: s.timeLabel || '',
+        guestCount: s.guestCount ?? '',
         sortOrder: s.sortOrder ?? idx,
       }))
     : [
         {
           date: defaultStartDate || '',
-          timeLabel: initialValues?.eventStart || 'Lunch',
-          guestCount: initialValues?.guestCount || 100,
+          timeLabel: initialValues?.eventStart || '',
+          guestCount: initialValues?.guestCount ?? '',
           sortOrder: 0,
         },
       ];
@@ -129,7 +129,7 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
     append({
       date: defaultDate,
       timeLabel: '',
-      guestCount: 100,
+      guestCount: '',
       sortOrder: watchSchedule.length,
     });
   };
@@ -140,12 +140,12 @@ export function BookingForm({ initialValues, onSubmit, onCancel, isSubmitting })
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Input
           label="Booking ID"
-          value={initialValues?.id || 'PMS-2026-AUTO'}
+          value={initialValues?.id || `H3MS-${new Date().getFullYear()}-AUTO`}
           disabled
           mono
         />
         <Input
-          label="Booking Date"
+          label="Assign Date"
           value={initialValues?.createdAt || todayStr()}
           disabled
         />

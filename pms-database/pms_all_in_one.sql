@@ -322,7 +322,7 @@ DECLARE
   yr       TEXT    := EXTRACT(YEAR FROM NOW())::TEXT;
   seq_val  INTEGER := nextval('pms_booking_seq');
 BEGIN
-  RETURN 'PMS-' || yr || '-' || LPAD(seq_val::TEXT, 5, '0');
+  RETURN 'H3MS-' || yr || '-' || LPAD(seq_val::TEXT, 5, '0');
 END;
 $$;
 

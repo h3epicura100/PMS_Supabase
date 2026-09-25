@@ -4,14 +4,14 @@
 -- Instructions: Copy and paste this directly into Supabase SQL Editor and click 'Run'.
 -- ============================================================
 
--- 1. Sequence generator for Booking ID: PMS-YYYY-00001
+-- 1. Sequence generator for Booking ID: H3MS-YYYY-00001
 CREATE OR REPLACE FUNCTION pms_next_booking_id()
 RETURNS TEXT LANGUAGE plpgsql AS $$
 DECLARE
   yr       TEXT    := EXTRACT(YEAR FROM NOW())::TEXT;
   seq_val  INTEGER := nextval('pms_booking_seq');
 BEGIN
-  RETURN 'PMS-' || yr || '-' || LPAD(seq_val::TEXT, 5, '0');
+  RETURN 'H3MS-' || yr || '-' || LPAD(seq_val::TEXT, 5, '0');
 END;
 $$;
 

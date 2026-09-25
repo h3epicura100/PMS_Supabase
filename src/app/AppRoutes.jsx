@@ -16,6 +16,15 @@ import { CrockeryPage } from '../features/departments/crockery/CrockeryPage';
 import { KitchenPage } from '../features/departments/kitchen/KitchenPage';
 import { VegetablesPage } from '../features/departments/vegetables/VegetablesPage';
 import { CheeseDairyPage } from '../features/departments/cheeseDairy/CheeseDairyPage';
+import { VendorOrdersPage } from '../features/departments/vendorOrders/VendorOrdersPage';
+import { BakeryPage } from '../features/departments/bakery/BakeryPage';
+import { IceWaterPage } from '../features/departments/iceWater/IceWaterPage';
+import { LoadingBoysPage } from '../features/departments/loadingBoys/LoadingBoysPage';
+import { VehiclePage } from '../features/departments/vehicle/VehiclePage';
+import { GasCylinderPage } from '../features/departments/gasCylinder/GasCylinderPage';
+import { FreshFlowersPage } from '../features/departments/freshFlowers/FreshFlowersPage';
+import { WaitersPage } from '../features/departments/waiters/WaitersPage';
+import { OutsourcingPage } from '../features/departments/outsourcing/OutsourcingPage';
 import { MastersPage } from '../features/masters/MastersPage';
 import { SettingsPage } from '../features/settings/SettingsPage';
 
@@ -126,12 +135,18 @@ export function AppRoutes() {
         />
 
         <Route
-          path="kitchen-raw-material"
+          path="menu-kitchen-requirement"
           element={
             <ProtectedRoute pageKey="kitchenRawMaterial">
               <KitchenPage />
             </ProtectedRoute>
           }
+        />
+
+        {/* Backward-compatibility redirect from legacy path */}
+        <Route
+          path="kitchen-raw-material"
+          element={<Navigate to="/menu-kitchen-requirement" replace />}
         />
 
         <Route
@@ -148,6 +163,87 @@ export function AppRoutes() {
           element={
             <ProtectedRoute pageKey="cheeseDairy">
               <CheeseDairyPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="vendor-orders"
+          element={
+            <ProtectedRoute pageKey="vendorOrders">
+              <VendorOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="bakery"
+          element={
+            <ProtectedRoute pageKey="bakery">
+              <BakeryPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="ice-water-requirement"
+          element={
+            <ProtectedRoute pageKey="iceWaterRequirement">
+              <IceWaterPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="loading-boys-aunties"
+          element={
+            <ProtectedRoute pageKey="loadingBoysAunties">
+              <LoadingBoysPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="vehicle-requirement"
+          element={
+            <ProtectedRoute pageKey="vehicleRequirement">
+              <VehiclePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="gas-cylinder"
+          element={
+            <ProtectedRoute pageKey="gasCylinder">
+              <GasCylinderPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="fresh-flowers"
+          element={
+            <ProtectedRoute pageKey="freshFlowers">
+              <FreshFlowersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="waiters"
+          element={
+            <ProtectedRoute pageKey="waiters">
+              <WaitersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="outsourcing-team"
+          element={
+            <ProtectedRoute pageKey="outsourcingTeam">
+              <OutsourcingPage />
             </ProtectedRoute>
           }
         />

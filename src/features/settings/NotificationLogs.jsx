@@ -24,9 +24,19 @@ const DEPT_INFO = {
   decor: { label: 'Decor & Floral', color: 'bg-purple-50 text-purple-700 border-purple-200' },
   dress: { label: 'Dress & Uniform', color: 'bg-pink-50 text-pink-700 border-pink-200' },
   crockery: { label: 'Crockery & Cutlery', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  kitchenRawMaterial: { label: 'Menu Kitchen Requirement', color: 'bg-teal-50 text-teal-700 border-teal-200' },
   vegetables: { label: 'Vegetables & Raw Material', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   cheeseDairy: { label: 'Cheese & Dairy', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   cheese_dairy: { label: 'Cheese & Dairy', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  vendorOrders: { label: 'Vendor Orders', color: 'bg-amber-50 text-amber-800 border-amber-200' },
+  bakery: { label: 'Bakery', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' },
+  iceWaterRequirement: { label: 'Ice & Water Requirement', color: 'bg-sky-50 text-sky-700 border-sky-200' },
+  loadingBoysAunties: { label: 'Loading Boys & Aunties', color: 'bg-zinc-50 text-zinc-700 border-zinc-200' },
+  vehicleRequirement: { label: 'Vehicle Requirement', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  gasCylinder: { label: 'Gas Cylinder', color: 'bg-red-50 text-red-700 border-red-200' },
+  freshFlowers: { label: 'Fresh Flowers', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+  waiters: { label: 'Waiters', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  outsourcingTeam: { label: 'Outsourcing Team Requirement', color: 'bg-purple-50 text-purple-700 border-purple-200' },
   purchase: { label: 'Purchase & General', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
   menu: { label: 'Menu Finalize', color: 'bg-violet-50 text-violet-700 border-violet-200' },
 };
@@ -292,8 +302,18 @@ export function NotificationLogs() {
                 <option value="decor">Decor & Floral</option>
                 <option value="dress">Dress & Uniform</option>
                 <option value="crockery">Crockery & Cutlery</option>
+                <option value="kitchenRawMaterial">Menu Kitchen Requirement</option>
                 <option value="vegetables">Vegetables & Raw Material</option>
                 <option value="cheeseDairy">Cheese & Dairy</option>
+                <option value="vendorOrders">Vendor Orders</option>
+                <option value="bakery">Bakery</option>
+                <option value="iceWaterRequirement">Ice & Water Requirement</option>
+                <option value="loadingBoysAunties">Loading Boys & Aunties</option>
+                <option value="vehicleRequirement">Vehicle Requirement</option>
+                <option value="gasCylinder">Gas Cylinder</option>
+                <option value="freshFlowers">Fresh Flowers</option>
+                <option value="waiters">Waiters</option>
+                <option value="outsourcingTeam">Outsourcing Team Requirement</option>
                 <option value="purchase">Purchase & General</option>
                 <option value="menu">Menu Finalization</option>
               </select>

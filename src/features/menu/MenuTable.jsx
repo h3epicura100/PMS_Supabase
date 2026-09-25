@@ -187,7 +187,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
               {/* Details Key-Value List */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
                 <div className="flex items-center justify-between sm:justify-start sm:gap-3 py-1 border-b border-slate-100/80 sm:border-0">
-                  <span className="text-[11px] font-semibold uppercase text-slate-400">Booked On:</span>
+                  <span className="text-[11px] font-semibold uppercase text-slate-400">Assign Date:</span>
                   <span className="font-medium text-slate-700">{formatDateDisplay(b.bookingDate || b.createdAt)}</span>
                 </div>
 
@@ -253,7 +253,7 @@ export function MenuTable({ bookings = [], onUpdateMenu }) {
               <tr className="bg-slate-50 border-b border-pms-border text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                 <th className="py-3 px-4">Action</th>
                 <th className="py-3 px-4">Booking ID</th>
-                <th className="py-3 px-4">Booking Date</th>
+                <th className="py-3 px-4">Assign Date</th>
                 <th className="py-3 px-4">Customer</th>
                 <th className="py-3 px-4">Event Date</th>
                 <th className="py-3 px-4">Venue</th>
