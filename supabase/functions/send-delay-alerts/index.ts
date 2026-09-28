@@ -319,14 +319,18 @@ serve(async (req: Request) => {
       const menuTask = Array.isArray(b.pms_menu_tasks) ? b.pms_menu_tasks[0] : b.pms_menu_tasks;
       if (menuTask?.status !== "Finalized") return;
 
-      const createdAtDate = new Date(b.created_at);
-      let effectiveDeadline: Date;
+      let effectiveDeadline: Date | null = null;
 
       if (b.delay_deadline_override) {
         effectiveDeadline = new Date(b.delay_deadline_override);
-      } else {
-        effectiveDeadline = new Date(createdAtDate.getTime() + 48 * 60 * 60 * 1000);
+      } else if (menuTask?.whatsapp_sent_at) {
+        const baseDate = new Date(menuTask.whatsapp_sent_at);
+        if (!isNaN(baseDate.getTime())) {
+          effectiveDeadline = new Date(baseDate.getTime() + 48 * 60 * 60 * 1000);
+        }
       }
+
+      if (!effectiveDeadline) return;
 
       (deptsData || []).forEach((d) => {
         const dt = (b.pms_department_tasks || []).find(

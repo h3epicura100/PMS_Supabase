@@ -15,37 +15,69 @@ export function derivedPlannedDate(eventDate) {
 }
 
 /**
+ * Returns the Date/timestamp when the menu finalization WhatsApp message was sent.
+ */
+export function getMenuFinalizedSentDate(booking) {
+  if (!booking) return null;
+
+  // 1. Check menu object (JS frontend shape)
+  const menu = booking.menu;
+  if (menu) {
+    const sentAt = menu.whatsappSentAt || menu.whatsapp_sent_at;
+    if (sentAt) {
+      const d = new Date(sentAt);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+
+  // 2. Check pms_menu_tasks relation (DB raw query shape)
+  const rawMenuTask = Array.isArray(booking.pms_menu_tasks)
+    ? booking.pms_menu_tasks[0]
+    : booking.pms_menu_tasks;
+
+  if (rawMenuTask) {
+    const sentAt = rawMenuTask.whatsapp_sent_at || rawMenuTask.whatsappSentAt;
+    if (sentAt) {
+      const d = new Date(sentAt);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+
+  // 3. Direct properties on booking object
+  const directSentAt = booking.whatsapp_sent_at || booking.whatsappSentAt || booking.menu_whatsapp_sent_at || booking.menuWhatsappSentAt;
+  if (directSentAt) {
+    const d = new Date(directSentAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  return null;
+}
+
+/**
  * Returns the effective delay deadline Date for a booking.
  * - If delayDeadlineOverride is set: uses that timestamp.
- * - Otherwise: booking.createdAt + 48 hours (exact timestamp).
+ * - Otherwise: timestamp of Menu Finalizing message sent date + 48 hours.
+ * - If menu finalizing message has not been sent: returns null (no fallback to creation date).
  */
 export function getEffectiveDeadline(booking) {
-  if (!booking) return new Date();
+  if (!booking) return null;
 
   const override = booking.delayDeadlineOverride || booking.delay_deadline_override;
   if (override) {
     return new Date(override);
   }
 
-  const rawCreated = booking.createdAt || booking.created_at || booking.bookingDate || booking.booking_date;
-  if (rawCreated) {
-    const createdDate = new Date(rawCreated);
-    if (!isNaN(createdDate.getTime())) {
-      return new Date(createdDate.getTime() + 48 * 60 * 60 * 1000);
-    }
+  const menuSentDate = getMenuFinalizedSentDate(booking);
+  if (menuSentDate) {
+    return new Date(menuSentDate.getTime() + 48 * 60 * 60 * 1000);
   }
 
-  return new Date();
+  return null;
 }
 
 /**
  * Calculates exact delay state and label for a department task.
- * Delay clock starts at booking creation timestamp + 48 hours (+24hr priority extensions if any).
- *
- * @param {Object|string} bookingOrPlanned - Booking object or fallback plannedDate string
- * @param {string} status - 'Pending' | 'Complete'
- * @param {string} [completedAtStr] - Task completion timestamp
- * @returns {{ label: string, cls: string, isDelayed: boolean, isDueToday: boolean, hoursOverdue: number, effectiveDeadline: Date }}
+ * Delay clock starts ONLY after completion of 48 hours from the menu finalizing WhatsApp message.
  */
 export function calculateDelayInfo(bookingOrPlanned, status, completedAtStr) {
   // If a booking object is passed
@@ -56,7 +88,7 @@ export function calculateDelayInfo(bookingOrPlanned, status, completedAtStr) {
   // Fallback for legacy date string usage
   const plannedDateStr = bookingOrPlanned;
   if (!plannedDateStr) {
-    return { label: '—', cls: 'pending', isDelayed: false, isDueToday: false, hoursOverdue: 0, effectiveDeadline: new Date() };
+    return { label: '—', cls: 'pending', isDelayed: false, isDueToday: false, hoursOverdue: 0, effectiveDeadline: null };
   }
 
   const planned = new Date(plannedDateStr);
@@ -103,14 +135,19 @@ export function calculateDelayInfo(bookingOrPlanned, status, completedAtStr) {
 }
 
 /**
- * Modern delay calculation based on 48h booking creation timestamp & priority override.
+ * Modern delay calculation strictly based on 48h from menu finalizing message & priority override.
  */
 export function calculateTaskDelayInfo(booking, status, completedAtStr) {
   if (!booking) {
-    return { label: '—', cls: 'pending', isDelayed: false, isDueToday: false, hoursOverdue: 0, effectiveDeadline: new Date() };
+    return { label: '—', cls: 'pending', isDelayed: false, isDueToday: false, hoursOverdue: 0, effectiveDeadline: null };
   }
 
   const effectiveDeadline = getEffectiveDeadline(booking);
+
+  // If menu finalizing message has not been sent yet, task delay timer has not started
+  if (!effectiveDeadline) {
+    return { label: status === 'Complete' ? 'On Time' : 'Pending', cls: status === 'Complete' ? 'completed' : 'pending', isDelayed: false, isDueToday: false, hoursOverdue: 0, effectiveDeadline: null };
+  }
   const now = new Date();
 
   if (status === 'Complete' || booking.status === 'closed' || booking.closed) {

@@ -178,7 +178,7 @@ export const notificationService = {
     try {
       const { data: laterBookings, error } = await supabase
         .from('pms_bookings')
-        .select('id, created_at, delay_deadline_override, event_start_date, event_date')
+        .select('id, created_at, delay_deadline_override, event_start_date, event_date, pms_menu_tasks(whatsapp_sent_at, updated_at, finalization_date)')
         .eq('status', 'active')
         .gt('event_date', newEventDate);
 
@@ -188,10 +188,8 @@ export const notificationService = {
       for (const bk of laterBookings) {
         if (excludeBookingId && bk.id === excludeBookingId) continue;
 
-        // Current active deadline
-        const currentDeadline = bk.delay_deadline_override
-          ? new Date(bk.delay_deadline_override)
-          : new Date(new Date(bk.created_at).getTime() + 48 * 60 * 60 * 1000);
+        // Current active deadline derived from menu finalizing message sent date + 48h (or override)
+        const currentDeadline = getEffectiveDeadline(bk);
 
         // ONLY extend if the new booking was created while this existing booking is still within its active deadline window
         if (referenceTime.getTime() > currentDeadline.getTime()) {
@@ -286,6 +284,8 @@ export const notificationService = {
       if (menuTask?.status !== 'Finalized') continue;
 
       const effectiveDeadline = getEffectiveDeadline(b);
+      if (!effectiveDeadline) continue; // Task delay timer starts strictly after menu finalizing whatsapp_sent_at
+
       const diffMs = now.getTime() - effectiveDeadline.getTime();
       const isDelayed = diffMs > 0;
 

@@ -173,18 +173,24 @@ BEGIN
   END IF;
 
   WITH updated AS (
-    UPDATE pms_bookings
+    UPDATE pms_bookings b
     SET 
-      delay_deadline_override = COALESCE(delay_deadline_override, created_at + INTERVAL '48 hours') + INTERVAL '24 hours',
+      delay_deadline_override = COALESCE(
+        b.delay_deadline_override,
+        (SELECT mt.whatsapp_sent_at FROM pms_menu_tasks mt WHERE mt.booking_id = b.id) + INTERVAL '48 hours'
+      ) + INTERVAL '24 hours',
       updated_at = NOW()
-    WHERE status = 'active'
-      AND (p_exclude_booking_id IS NULL OR id <> p_exclude_booking_id)
-      AND COALESCE(event_start_date, event_date) > p_new_event_date
+    WHERE b.status = 'active'
+      AND (p_exclude_booking_id IS NULL OR b.id <> p_exclude_booking_id)
+      AND COALESCE(b.event_start_date, b.event_date) > p_new_event_date
       AND (
-        -- ONLY extend if the new booking is created while this booking is still within its active deadline window
-        COALESCE(delay_deadline_override, created_at + INTERVAL '48 hours') >= v_ref_time
+        (SELECT mt.whatsapp_sent_at FROM pms_menu_tasks mt WHERE mt.booking_id = b.id) IS NOT NULL
+        AND COALESCE(
+          b.delay_deadline_override,
+          (SELECT mt.whatsapp_sent_at FROM pms_menu_tasks mt WHERE mt.booking_id = b.id) + INTERVAL '48 hours'
+        ) >= v_ref_time
       )
-    RETURNING id
+    RETURNING b.id
   )
   SELECT COUNT(*) INTO v_updated_count FROM updated;
 

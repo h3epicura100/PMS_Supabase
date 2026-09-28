@@ -5,46 +5,19 @@
 -- ============================================================
 
 -- 1. Expanded Bookings View (Joins normalized tables for flat compatibility)
-CREATE OR REPLACE VIEW v_pms_bookings_expanded AS
+DROP VIEW IF EXISTS v_pms_bookings_expanded CASCADE;
+CREATE VIEW v_pms_bookings_expanded AS
 SELECT
-  b.id,
-  b.booking_date,
-  b.event_start_date,
-  b.event_end_date,
-  b.event_date,
+  b.*,
   COALESCE(
-    (SELECT SUM(guest_count) FROM pms_event_schedule WHERE booking_id = b.id),
-    0
-  )::INTEGER AS total_guest_count,
-  b.remarks,
-  b.status,
-  b.created_by,
-  b.created_at,
-  b.updated_at,
-
-  -- Normalized Customer fields
-  c.id          AS customer_id,
-  c.name        AS customer_name,
-  c.mobile      AS customer_mobile,
-  c.alt_number  AS alt_number,
-
-  -- Normalized Function Type
-  ft.id         AS function_type_id,
-  ft.name       AS function_type,
-
-  -- Normalized Venue
-  v.id          AS venue_id,
-  v.name        AS venue_name,
-
-  -- Normalized Reference
-  r.id          AS reference_id,
-  r.name        AS reference_name,
-  r.mobile      AS reference_number
-FROM pms_bookings b
-JOIN pms_customers c ON c.id = b.customer_id
-LEFT JOIN pms_function_types ft ON ft.id = b.function_type_id
-LEFT JOIN pms_venues v ON v.id = b.venue_id
-LEFT JOIN pms_references r ON r.id = b.reference_id;
+    b.delay_deadline_override,
+    CASE 
+      WHEN (SELECT mt.whatsapp_sent_at FROM pms_menu_tasks mt WHERE mt.booking_id = b.id) IS NOT NULL 
+      THEN (SELECT mt.whatsapp_sent_at FROM pms_menu_tasks mt WHERE mt.booking_id = b.id) + INTERVAL '48 hours'
+      ELSE NULL 
+    END
+  ) AS effective_delay_deadline
+FROM pms_bookings b;
 
 -- 2. View for Dashboard Statistics
 CREATE OR REPLACE VIEW pms_dashboard_stats AS

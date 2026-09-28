@@ -210,7 +210,7 @@ export function NotificationLogs() {
               <h3 className="text-sm sm:text-base font-bold text-white">Smart Delay & WhatsApp Notification Monitor</h3>
             </div>
             <p className="text-xs text-blue-100/90 leading-relaxed max-w-2xl">
-              Tasks are delayed starting 48 hours after booking creation (with +24h extension when closer events are added). 
+              Tasks are delayed starting 48 hours after menu finalizing message is sent (with +24h extension when closer events are added). 
               Initial alert is sent immediately upon delay, followed by daily reminder slots at <strong>11:00 AM, 3:00 PM, and 6:00 PM IST</strong> to assigned department staff.
             </p>
           </div>

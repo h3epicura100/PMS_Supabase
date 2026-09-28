@@ -154,6 +154,7 @@ export const bookingService = {
           finalizationDate: menuTask ? menuTask.finalization_date : '',
           whatsappStatus: menuTask ? menuTask.whatsapp_status : null,
           whatsappSentAt: menuTask ? menuTask.whatsapp_sent_at : null,
+          updatedAt: menuTask ? menuTask.updated_at : null,
         },
         departments: depts,
       });
