@@ -28,7 +28,7 @@ const DEPT_INFO = {
   vegetables: { label: 'Vegetables & Raw Material', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   cheeseDairy: { label: 'Cheese & Dairy', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   cheese_dairy: { label: 'Cheese & Dairy', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  vendorOrders: { label: 'Vendor Orders', color: 'bg-amber-50 text-amber-800 border-amber-200' },
+  vendorOrders: { label: 'Vendor Coordination', color: 'bg-amber-50 text-amber-800 border-amber-200' },
   bakery: { label: 'Bakery', color: 'bg-yellow-50 text-yellow-800 border-yellow-200' },
   iceWaterRequirement: { label: 'Ice & Water Requirement', color: 'bg-sky-50 text-sky-700 border-sky-200' },
   loadingBoysAunties: { label: 'Loading Boys & Aunties', color: 'bg-zinc-50 text-zinc-700 border-zinc-200' },
@@ -305,7 +305,7 @@ export function NotificationLogs() {
                 <option value="kitchenRawMaterial">Menu Kitchen Requirement</option>
                 <option value="vegetables">Vegetables & Raw Material</option>
                 <option value="cheeseDairy">Cheese & Dairy</option>
-                <option value="vendorOrders">Vendor Orders</option>
+                <option value="vendorOrders">Vendor Coordination</option>
                 <option value="bakery">Bakery</option>
                 <option value="iceWaterRequirement">Ice & Water Requirement</option>
                 <option value="loadingBoysAunties">Loading Boys & Aunties</option>

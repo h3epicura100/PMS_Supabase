@@ -16,7 +16,7 @@ import { CrockeryPage } from '../features/departments/crockery/CrockeryPage';
 import { KitchenPage } from '../features/departments/kitchen/KitchenPage';
 import { VegetablesPage } from '../features/departments/vegetables/VegetablesPage';
 import { CheeseDairyPage } from '../features/departments/cheeseDairy/CheeseDairyPage';
-import { VendorOrdersPage } from '../features/departments/vendorOrders/VendorOrdersPage';
+import { VendorCoordinationPage } from '../features/departments/vendorCoordination/VendorCoordinationPage';
 import { BakeryPage } from '../features/departments/bakery/BakeryPage';
 import { IceWaterPage } from '../features/departments/iceWater/IceWaterPage';
 import { LoadingBoysPage } from '../features/departments/loadingBoys/LoadingBoysPage';
@@ -168,12 +168,18 @@ export function AppRoutes() {
         />
 
         <Route
-          path="vendor-orders"
+          path="vendor-coordination"
           element={
             <ProtectedRoute pageKey="vendorOrders">
-              <VendorOrdersPage />
+              <VendorCoordinationPage />
             </ProtectedRoute>
           }
+        />
+
+        {/* Backward-compatibility redirect from legacy path */}
+        <Route
+          path="vendor-orders"
+          element={<Navigate to="/vendor-coordination" replace />}
         />
 
         <Route

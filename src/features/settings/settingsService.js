@@ -12,7 +12,7 @@ export const ALL_PERMISSIONS_MASTER = [
   { key: 'kitchenRawMaterial', label: 'Menu Kitchen Requirement' },
   { key: 'vegetables', label: 'Vegetables' },
   { key: 'cheeseDairy', label: 'Cheese & Dairy Products' },
-  { key: 'vendorOrders', label: 'Vendor Orders' },
+  { key: 'vendorOrders', label: 'Vendor Coordination' },
   { key: 'bakery', label: 'Bakery' },
   { key: 'iceWaterRequirement', label: 'Ice & Water Requirement' },
   { key: 'loadingBoysAunties', label: 'Loading Boys & Aunties' },

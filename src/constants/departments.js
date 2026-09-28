@@ -7,7 +7,7 @@ export const DEPT_LIST = [
   { key: 'kitchenRawMaterial',   label: 'Menu Kitchen Requirement',    type: 'simple' },
   { key: 'vegetables',           label: 'Vegetables',                  type: 'vegetables' },
   { key: 'cheeseDairy',          label: 'Cheese & Dairy Products',     type: 'cheeseDairy' },
-  { key: 'vendorOrders',         label: 'Vendor Orders',               type: 'simple' },
+  { key: 'vendorOrders',         label: 'Vendor Coordination',         type: 'simple' },
   { key: 'bakery',               label: 'Bakery',                      type: 'simple' },
   { key: 'iceWaterRequirement',  label: 'Ice & Water Requirement',     type: 'simple' },
   { key: 'loadingBoysAunties',   label: 'Loading Boys & Aunties',      type: 'simple' },
