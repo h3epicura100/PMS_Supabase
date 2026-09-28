@@ -4,11 +4,26 @@
 -- Instructions: Copy and paste this directly into Supabase SQL Editor and click 'Run'.
 -- ============================================================
 
--- 1. Expanded Bookings View (Joins normalized tables for flat compatibility)
+-- 1. Expanded Bookings View (Joins customers, function_types, and references)
 DROP VIEW IF EXISTS v_pms_bookings_expanded CASCADE;
 CREATE VIEW v_pms_bookings_expanded AS
 SELECT
-  b.*,
+  b.id,
+  b.booking_date,
+  b.event_start_date,
+  b.event_end_date,
+  b.event_date,
+  b.venue_name,
+  COALESCE(
+    (SELECT SUM(guest_count) FROM pms_event_schedule WHERE booking_id = b.id),
+    0
+  )::INTEGER AS total_guest_count,
+  b.remarks,
+  b.status,
+  b.created_by,
+  b.created_at,
+  b.updated_at,
+  b.delay_deadline_override,
   COALESCE(
     b.delay_deadline_override,
     CASE 
@@ -16,8 +31,26 @@ SELECT
       THEN (SELECT mt.whatsapp_sent_at FROM pms_menu_tasks mt WHERE mt.booking_id = b.id) + INTERVAL '48 hours'
       ELSE NULL 
     END
-  ) AS effective_delay_deadline
-FROM pms_bookings b;
+  ) AS effective_delay_deadline,
+
+  -- Normalized Customer fields
+  b.customer_id,
+  c.name        AS customer_name,
+  c.mobile      AS customer_mobile,
+  c.alt_number  AS alt_number,
+
+  -- Normalized Function Type
+  b.function_type_id,
+  ft.name       AS function_type,
+
+  -- Normalized Reference
+  b.reference_id,
+  r.name        AS reference_name,
+  r.mobile      AS reference_number
+FROM pms_bookings b
+LEFT JOIN pms_customers c ON c.id = b.customer_id
+LEFT JOIN pms_function_types ft ON ft.id = b.function_type_id
+LEFT JOIN pms_references r ON r.id = b.reference_id;
 
 -- 2. View for Dashboard Statistics
 CREATE OR REPLACE VIEW pms_dashboard_stats AS
@@ -62,7 +95,7 @@ SELECT
   b.event_start_date,
   b.event_end_date,
   COALESCE(b.event_end_date, b.event_date) AS event_date,
-  v.name         AS venue_name,
+  b.venue_name   AS venue_name,
   dt.department_key AS department,
   d.label        AS department_label,
   dt.status,
@@ -70,8 +103,7 @@ SELECT
   dt.updated_by
 FROM pms_department_tasks dt
 JOIN pms_bookings b ON b.id = dt.booking_id
-JOIN pms_customers c ON c.id = b.customer_id
-LEFT JOIN pms_venues v ON v.id = b.venue_id
+LEFT JOIN pms_customers c ON c.id = b.customer_id
 JOIN pms_departments d ON d.key = dt.department_key
 JOIN pms_menu_tasks mt ON mt.booking_id = b.id
 WHERE b.status = 'active'
