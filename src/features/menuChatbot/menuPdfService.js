@@ -11,13 +11,105 @@ const LIGHT_BG = [248, 250, 252]; // #F8FAFC
 const BORDER_COLOR = [226, 232, 240]; // #E2E8F0
 
 export const menuPdfService = {
+  _watermarkCache: null,
+
+  /**
+   * Pre-loads H3-logo.svg, strips out solid background, and rasterizes to a PNG Data URL
+   * with 9% opacity on a transparent canvas.
+   * @returns {Promise<string|null>}
+   */
+  async loadWatermarkImage() {
+    if (this._watermarkCache) return this._watermarkCache;
+
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return null;
+    }
+
+    try {
+      const response = await fetch('/H3-logo.svg');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch SVG: ${response.status}`);
+      }
+      let svgText = await response.text();
+      // Remove solid white background box so watermark has a transparent background
+      svgText = svgText.replace(/<path[^>]*d="M0 0 C495 0 990 0 1500 0[^"]*"[^>]*\/>/i, '');
+
+      const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      const dataUrl = await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const size = 600;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.globalAlpha = 0.09; // 9% opacity transparent overlay
+            ctx.drawImage(img, 0, 0, size, size);
+            URL.revokeObjectURL(blobUrl);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (e) {
+            URL.revokeObjectURL(blobUrl);
+            resolve(null);
+          }
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(blobUrl);
+          resolve(null);
+        };
+        img.src = blobUrl;
+      });
+
+      if (dataUrl) {
+        this._watermarkCache = dataUrl;
+        return dataUrl;
+      }
+    } catch (err) {
+      console.warn('Could not load watermark via SVG fetch, falling back to direct Image load:', err);
+    }
+
+    // Direct fallback if fetch/blob failed
+    return new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const size = 600;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            ctx.globalAlpha = 0.09; // 9% opacity transparent overlay
+            ctx.drawImage(img, 0, 0, size, size);
+            const dataUrl = canvas.toDataURL('image/png');
+            this._watermarkCache = dataUrl;
+            resolve(dataUrl);
+          } catch (e) {
+            resolve(null);
+          }
+        };
+        img.onerror = () => {
+          console.warn('Direct watermark image load failed.');
+          resolve(null);
+        };
+        img.src = '/H3-logo.svg';
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  },
+
   /**
    * Generates a jsPDF document instance from structured menu data.
    * Precise vertical coordinate system preventing overlaps, clipping, and dead white spaces.
    * @param {Object} menuData
-   * @returns {jsPDF}
+   * @returns {Promise<jsPDF>}
    */
-  generatePdf(menuData) {
+  async generatePdf(menuData) {
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -30,6 +122,9 @@ export const menuPdfService = {
     const contentWidth = pageWidth - margin * 2;
     const bottomSafeMargin = pageHeight - 16; // space for footer
     const topContentY = 28; // safe start Y on a new page (below 20mm header bar)
+
+    // Load watermark asset for final overlay pass
+    const watermarkDataUrl = await this.loadWatermarkImage();
 
     const clientName = menuData.clientName || 'Valued Client';
     const eventName = menuData.eventName || 'Wedding & Banquet Catering Menu';
@@ -119,7 +214,7 @@ export const menuPdfService = {
     doc.text('Venue: ', margin + 5, currentY + 17.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...DARK_SLATE);
-    doc.text(`${city} — ${venue}`, margin + 17, currentY + 17.5);
+    doc.text(venue, margin + 17, currentY + 17.5);
 
     currentY += 26;
 
@@ -285,7 +380,33 @@ export const menuPdfService = {
     // ==========================================
     // CONTINUOUS SESSION MENUS
     // ==========================================
+    let lastRenderedDate = null;
     sessions.forEach((session, sIdx) => {
+      const sessionDate = session.date?.trim() || null;
+      if (sessionDate && sessionDate !== lastRenderedDate) {
+        lastRenderedDate = sessionDate;
+        ensureSpace(45, `DAY ITINERARY: ${sessionDate.toUpperCase()}`);
+
+        // Date-change divider banner
+        doc.setFillColor(238, 242, 255); // Indigo-50 soft accent
+        doc.setDrawColor(...NAVY);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(margin, currentY, contentWidth, 7.5, 1, 1, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...NAVY);
+        doc.text(`SCHEDULE FOR: ${sessionDate.toUpperCase()}`, margin + 4, currentY + 5);
+
+        currentY += 10.5;
+      }
+
+      const categories = session.categories || [];
+      const totalSessionDishes = categories.reduce(
+        (acc, cat) => acc + (cat.items?.length || 0),
+        0
+      );
+
       // Require at least 42mm for session banner + first category
       ensureSpace(42, `SESSION MENU: ${session.name?.toUpperCase() || 'SESSION'}`);
 
@@ -299,6 +420,13 @@ export const menuPdfService = {
       doc.setTextColor(255, 255, 255);
       const sessionTitle = `${session.date ? session.date + ' — ' : ''}${session.name || 'SESSION'}`.toUpperCase();
       doc.text(sessionTitle, margin + 5, currentY + 5);
+
+      if (totalSessionDishes > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...GOLD);
+        doc.text(`${totalSessionDishes} ITEMS`, pageWidth - margin - 5, currentY + 5, { align: 'right' });
+      }
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
@@ -322,7 +450,6 @@ export const menuPdfService = {
         currentY += notesBoxHeight + 3;
       }
 
-      const categories = session.categories || [];
       if (categories.length === 0) {
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(8);
@@ -392,7 +519,7 @@ export const menuPdfService = {
             doc.setTextColor(...DARK_SLATE);
             doc.text(item.name || 'Dish Item', margin + 7, currentY);
 
-            currentY += 3.6; // Advance past title line
+            currentY += 4.2; // Advance past title line for clean line height
 
             // Description (if any)
             if (hasDesc) {
@@ -406,17 +533,17 @@ export const menuPdfService = {
             }
           });
 
-          currentY += 2.5; // Gap between categories
+          currentY += 4; // Gap between categories
         });
       }
 
-      currentY += 5; // Gap between sessions
+      currentY += 8; // Gap between sessions
     });
 
     // ==========================================
     // TERMS & CONDITIONS & SIGNATURES
     // ==========================================
-    ensureSpace(70, 'STANDARD TERMS & CONDITIONS');
+    ensureSpace(40, 'STANDARD TERMS & CONDITIONS');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9.5);
@@ -469,11 +596,22 @@ export const menuPdfService = {
     currentY += 14;
 
     // ==========================================
-    // ADD RUNNING FOOTERS TO ALL PAGES
+    // ADD WATERMARKS & RUNNING FOOTERS (FINAL OVERLAY PASS)
     // ==========================================
     const totalPages = doc.getNumberOfPages();
+    const wmSize = 105; // 105mm x 105mm centered
+    const wmX = (pageWidth - wmSize) / 2;
+    const wmY = (pageHeight - wmSize) / 2;
+
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
+
+      // 1. Draw watermark as transparent overlay ON TOP of tables, badges, and text
+      if (watermarkDataUrl) {
+        doc.addImage(watermarkDataUrl, 'PNG', wmX, wmY, wmSize, wmSize);
+      }
+
+      // 2. Draw page footer on top
       drawPageFooter(i, totalPages);
     }
 
@@ -484,8 +622,8 @@ export const menuPdfService = {
    * Downloads the generated PDF to user's computer.
    * @param {Object} menuData
    */
-  downloadPdf(menuData) {
-    const doc = this.generatePdf(menuData);
+  async downloadPdf(menuData) {
+    const doc = await this.generatePdf(menuData);
     const cleanName = (menuData.eventName || 'H3_Catering_Menu').replace(/[^a-zA-Z0-9_-]/g, '_');
     doc.save(`${cleanName}_Menu.pdf`);
   },
@@ -493,10 +631,10 @@ export const menuPdfService = {
   /**
    * Converts the generated PDF to a File object for uploading to Supabase Storage.
    * @param {Object} menuData
-   * @returns {File}
+   * @returns {Promise<File>}
    */
-  getPdfFile(menuData) {
-    const doc = this.generatePdf(menuData);
+  async getPdfFile(menuData) {
+    const doc = await this.generatePdf(menuData);
     const cleanName = (menuData.eventName || 'H3_Catering_Menu').replace(/[^a-zA-Z0-9_-]/g, '_');
     const fileName = `${cleanName}_Final_Menu.pdf`;
     const blob = doc.output('blob');
@@ -506,10 +644,10 @@ export const menuPdfService = {
   /**
    * Returns a Data URL or Blob URL for in-browser PDF preview.
    * @param {Object} menuData
-   * @returns {string}
+   * @returns {Promise<string>}
    */
-  getPdfBlobUrl(menuData) {
-    const doc = this.generatePdf(menuData);
+  async getPdfBlobUrl(menuData) {
+    const doc = await this.generatePdf(menuData);
     const blob = doc.output('blob');
     return URL.createObjectURL(blob);
   }

@@ -1,17 +1,23 @@
 import { SYSTEM_PROMPT } from './chatbotPrompts';
+import { convertPdfToImagesAndText } from './pdfHelper';
 
-const STORAGE_KEY = 'h3_gemini_api_key';
+const STORAGE_KEY = 'h3_openai_api_key';
+const LEGACY_STORAGE_KEY = 'h3_gemini_api_key';
 
 export const chatbotService = {
   /**
-   * Retrieves the active Gemini API Key from Vite environment variable or localStorage.
+   * Retrieves the active OpenAI API Key from Vite environment variable or localStorage.
    */
   getApiKey() {
-    const envKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+    const envKey = (
+      import.meta.env.VITE_OPENAI_API_KEY ||
+      import.meta.env.VITE_GEMINI_API_KEY ||
+      ''
+    ).trim();
     if (envKey) {
       return envKey;
     }
-    const local = localStorage.getItem(STORAGE_KEY);
+    const local = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (local && local.trim().length > 0) {
       return local.trim();
     }
@@ -19,13 +25,15 @@ export const chatbotService = {
   },
 
   /**
-   * Sets or clears the user-specified Gemini API Key in localStorage.
+   * Sets or clears the user-specified OpenAI API Key in localStorage.
    */
   setApiKey(key) {
     if (key && key.trim()) {
       localStorage.setItem(STORAGE_KEY, key.trim());
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } else {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     }
   },
 
@@ -37,7 +45,7 @@ export const chatbotService = {
   },
 
   /**
-   * Extracts JSON block from Gemini markdown text response.
+   * Extracts JSON block from OpenAI markdown text response.
    */
   extractJsonFromText(text) {
     if (!text) return null;
@@ -73,11 +81,10 @@ export const chatbotService = {
   },
 
   /**
-   * Cleans text to display in chat (removes raw JSON code blocks for clean reading if desired).
+   * Cleans text to display in chat (removes raw JSON code blocks for clean reading).
    */
   cleanMessageText(text) {
     if (!text) return '';
-    // Replace json code block with a friendly note or remove it from chat bubble
     return text.replace(/```json[\s\S]*?```/gi, '').trim();
   },
 
@@ -103,114 +110,151 @@ export const chatbotService = {
   },
 
   /**
-   * Sends conversation to Gemini API and parses conversational text + menu JSON.
-   * @param {Array<{ role: 'user' | 'model', text: string }>} conversation
+   * Sends conversation to OpenAI API and parses conversational text + menu JSON.
+   * Supports text, images (JPEG/PNG/WebP), and PDFs (converted to high-res canvas images).
+   * 
+   * @param {Array<{ role: 'user' | 'model' | 'assistant', text: string }>} conversation
    * @param {Object} currentMenuData - Current active menu state
    * @param {Object|null} attachment - Optional attachment { name, mimeType, base64 }
    */
   async sendMessage(conversation, currentMenuData = null, attachment = null) {
     const apiKey = this.getApiKey();
     if (!apiKey) {
-      throw new Error('Gemini API Key is missing. Please configure your API key in settings or top bar.');
+      throw new Error('OpenAI API Key is missing. Please configure your API key in your .env or settings.');
     }
 
-    // Prepare contents array for Gemini
-    const contents = [];
-
-    // System instruction passed via systemInstruction property (supported in Gemini 1.5+)
+    // System instruction passed as the first system message
     let systemText = `${SYSTEM_PROMPT}\n\nCURRENT MENU STATE:\n${
       currentMenuData ? JSON.stringify(currentMenuData, null, 2) : 'No menu created yet.'
     }`;
 
     if (attachment) {
-      systemText += `\n\nATTACHMENT INSTRUCTION:\nA file "${attachment.name}" (${attachment.mimeType}) has been provided by the user. Carefully analyze and extract all relevant menu details (OCR for images/scans, text from PDFs/documents) including dish names, caterers, courses, timings, sessions, guest count, live counters, staff meals, and catering policies. Structure everything into the standard H3 Menu Blueprint JSON output format.`;
+      systemText += `\n\nATTACHMENT INSTRUCTION — CRITICAL:\nA file "${attachment.name}" (${attachment.mimeType}) has been provided by the user. You MUST:\n1. Extract EVERY dish, live counter, course, session, timing, pax count, and note — capture 100%, ZERO omissions.\n2. If this is a pre-existing H3 menu PDF, replicate the EXACT same sessions and menu items into the JSON schema — do not summarize or drop items.\n3. The JSON output MUST be complete. Do NOT truncate, skip pages, or replace items with placeholders like "and more".\n4. If the document has 8 sessions and 200 dishes, your JSON must have 8 sessions and 200 dishes.`;
     }
 
-    const systemInstruction = {
-      role: 'user',
-      parts: [
-        {
-          text: systemText
-        }
-      ]
-    };
+    const messages = [
+      {
+        role: 'system',
+        content: systemText,
+      },
+    ];
 
     // Format conversation history
     const totalMsgs = conversation.length;
-    conversation.forEach((msg, index) => {
-      const isLastUserMsg = (index === totalMsgs - 1) && msg.role === 'user';
+
+    for (let index = 0; index < totalMsgs; index++) {
+      const msg = conversation[index];
+      const isLastUserMsg = index === totalMsgs - 1 && msg.role === 'user';
 
       if (isLastUserMsg && attachment && attachment.base64) {
+        const mime = (attachment.mimeType || '').toLowerCase();
+        const fileName = (attachment.name || '').toLowerCase();
+
         const isTextFile =
-          attachment.mimeType === 'text/plain' ||
-          attachment.mimeType === 'text/csv' ||
-          attachment.name?.toLowerCase().endsWith('.txt') ||
-          attachment.name?.toLowerCase().endsWith('.csv');
+          mime === 'text/plain' ||
+          mime === 'text/csv' ||
+          fileName.endsWith('.txt') ||
+          fileName.endsWith('.csv');
+
+        const isPdfFile = mime === 'application/pdf' || fileName.endsWith('.pdf');
 
         if (isTextFile) {
           const textContent = this.decodeBase64Text(attachment.base64);
-          const combinedText = `[Uploaded File: ${attachment.name}]\n${textContent}\n\n${msg.text || 'Please structure this uploaded file into an H3 menu blueprint.'}`;
-          contents.push({
+          const combinedText = `[Uploaded File: ${attachment.name}]\n${textContent}\n\n${
+            msg.text || 'Please structure this uploaded file into an H3 menu blueprint.'
+          }`;
+          messages.push({
             role: 'user',
-            parts: [{ text: combinedText }]
+            content: combinedText,
+          });
+        } else if (isPdfFile) {
+          // Convert all PDF pages to images and extract text for OpenAI Vision
+          const pdfResult = await convertPdfToImagesAndText(attachment.base64);
+
+          const contentParts = [];
+          let userPrompt =
+            msg.text ||
+            `Please analyze this attached menu document (${attachment.name}) and extract all menu details into the structured H3 Menu Blueprint.`;
+
+          if (pdfResult?.text && pdfResult.text.trim()) {
+            userPrompt += `\n\n[Extracted Document Text]:\n${pdfResult.text}`;
+          }
+
+          contentParts.push({
+            type: 'text',
+            text: userPrompt,
+          });
+
+          if (pdfResult?.images && pdfResult.images.length > 0) {
+            pdfResult.images.forEach((imgDataUrl) => {
+              contentParts.push({
+                type: 'image_url',
+                image_url: {
+                  url: imgDataUrl,
+                  detail: 'high',
+                },
+              });
+            });
+          }
+
+          messages.push({
+            role: 'user',
+            content: contentParts,
           });
         } else {
-          // Multimodal inline data (Images, PDFs)
-          contents.push({
+          // Multimodal image (JPEG, PNG, WebP, GIF)
+          const imageMime = attachment.mimeType || 'image/jpeg';
+          messages.push({
             role: 'user',
-            parts: [
+            content: [
               {
-                text: msg.text || `Please analyze this attached document/image (${attachment.name}) and extract all menu details into the structured H3 Menu Blueprint.`
+                type: 'text',
+                text:
+                  msg.text ||
+                  `Please analyze this attached menu image (${attachment.name}) and extract all menu details into the structured H3 Menu Blueprint.`,
               },
               {
-                inlineData: {
-                  mimeType: attachment.mimeType || 'application/pdf',
-                  data: attachment.base64
-                }
-              }
-            ]
+                type: 'image_url',
+                image_url: {
+                  url: `data:${imageMime};base64,${attachment.base64}`,
+                  detail: 'high',
+                },
+              },
+            ],
           });
         }
       } else {
-        contents.push({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.text || '' }]
+        messages.push({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.text || '',
         });
       }
-    });
+    }
 
-    const payload = {
-      systemInstruction,
-      contents,
-      generationConfig: {
-        temperature: 0.4,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-      }
-    };
-
+    // Models ordered by priority: Paid tier flagship gpt-4o, then fast fallback gpt-4o-mini
     const modelsToTry = [
-      'gemini-3.5-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-3.6-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-flash-lite-latest',
-      'gemini-3.1-flash-lite-preview',
-      'gemini-3-flash-preview',
-      'gemini-flash-latest',
-      'gemini-3.7-flash',
-      'gemini-3.8-flash'
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4-turbo',
     ];
 
     let lastError = null;
 
     for (const model of modelsToTry) {
       try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(endpoint, {
+        const payload = {
+          model,
+          messages,
+          temperature: 0.4,
+          top_p: 0.95,
+          max_tokens: 16000,
+        };
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
           },
           body: JSON.stringify(payload),
         });
@@ -219,23 +263,22 @@ export const chatbotService = {
           const errData = await response.json().catch(() => ({}));
           const errMsg = errData.error?.message || `HTTP ${response.status} ${response.statusText}`;
 
-          // If model not found (404), unsupported (400), rate-limited/quota (429), or temporarily overloaded (503/500), cascade
-          lastError = new Error(`Gemini ${model}: ${errMsg}`);
+          lastError = new Error(`OpenAI ${model}: ${errMsg}`);
           console.warn(`Model ${model} returned ${response.status} (${errMsg}), cascading to next model...`);
 
           // Short backoff before trying next model if server is busy or rate limited
           if (response.status === 503 || response.status === 429) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
+            await new Promise((resolve) => setTimeout(resolve, 500));
           }
           continue;
         }
 
         const data = await response.json();
-        const candidate = data.candidates?.[0];
-        const rawText = candidate?.content?.parts?.[0]?.text || '';
+        const choice = data.choices?.[0];
+        const rawText = choice?.message?.content || '';
 
         if (!rawText) {
-          throw new Error(`No response text received from Gemini (${model}).`);
+          throw new Error(`No response text received from OpenAI (${model}).`);
         }
 
         const extractedMenu = this.extractJsonFromText(rawText);
@@ -245,7 +288,7 @@ export const chatbotService = {
           rawText,
           message: cleanMessage,
           menuData: extractedMenu,
-          modelUsed: model
+          modelUsed: model,
         };
       } catch (err) {
         lastError = err;
@@ -253,6 +296,6 @@ export const chatbotService = {
       }
     }
 
-    throw lastError || new Error('Failed to connect to Gemini API. Please verify your API key.');
-  }
+    throw lastError || new Error('Failed to connect to OpenAI API. Please verify your API key.');
+  },
 };

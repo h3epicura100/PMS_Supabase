@@ -51,14 +51,14 @@ export function MenuChatbotPage() {
     setIsLoading(true);
 
     try {
-      const geminiHistory = updatedHistory
+      const chatHistory = updatedHistory
         .filter((m) => m.role === 'user' || m.role === 'model')
         .map((m) => ({
           role: m.role === 'user' ? 'user' : 'model',
           text: m.text,
         }));
 
-      const result = await chatbotService.sendMessage(geminiHistory, menuData, attachment);
+      const result = await chatbotService.sendMessage(chatHistory, menuData, attachment);
 
       const botMsg = {
         role: 'model',

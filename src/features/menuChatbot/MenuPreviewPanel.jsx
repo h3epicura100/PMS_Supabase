@@ -42,29 +42,42 @@ export function MenuPreviewPanel({ menuData, onResetMenu }) {
 
   // Generate PDF blob URL for the embedded iframe when PDF view is active
   useEffect(() => {
+    let isCancelled = false;
+    let createdUrl = null;
+
     if (viewMode === 'pdf' && hasData) {
-      try {
-        const url = menuPdfService.getPdfBlobUrl(menuData);
-        setPdfBlobUrl(url);
-        return () => {
-          if (url) URL.revokeObjectURL(url);
-        };
-      } catch (err) {
-        console.warn('Failed to generate PDF blob URL:', err);
-      }
+      menuPdfService.getPdfBlobUrl(menuData)
+        .then((url) => {
+          if (isCancelled) {
+            if (url) URL.revokeObjectURL(url);
+          } else {
+            createdUrl = url;
+            setPdfBlobUrl(url);
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to generate PDF blob URL:', err);
+        });
     } else {
       setPdfBlobUrl(null);
     }
+
+    return () => {
+      isCancelled = true;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
   }, [viewMode, menuData, hasData]);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!hasData) {
       toast.error('No menu data to generate PDF.');
       return;
     }
     try {
       setIsGeneratingPdf(true);
-      menuPdfService.downloadPdf(menuData);
+      await menuPdfService.downloadPdf(menuData);
       toast.success('H3 Catering Menu PDF downloaded!');
     } catch (e) {
       console.error(e);
@@ -86,7 +99,7 @@ export function MenuPreviewPanel({ menuData, onResetMenu }) {
     try {
       setIsAttaching(true);
 
-      const pdfFile = menuPdfService.getPdfFile(menuData);
+      const pdfFile = await menuPdfService.getPdfFile(menuData);
       const uploadedAttachment = await storageService.uploadAttachment(
         `menu/${selectedBookingId}`,
         pdfFile
