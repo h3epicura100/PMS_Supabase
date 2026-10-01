@@ -11,11 +11,12 @@ export function AuthProvider({ children }) {
     try {
       if (saved) {
         const u = JSON.parse(saved);
-        const isFull = Boolean(u.has_full_access || u.role === 'admin' || u.allowedPages?.includes('ALL'));
+        const isFull = Boolean(u.role === 'admin' || u.has_full_access);
+        const cleanPages = (u.allowedPages || []).filter(p => p !== 'ALL');
         return {
           ...u,
           has_full_access: isFull,
-          allowedPages: isFull ? ['ALL'] : (u.allowedPages || ['dashboard']),
+          allowedPages: isFull ? ['ALL'] : (cleanPages.length ? cleanPages : ['dashboard']),
         };
       }
       return null;

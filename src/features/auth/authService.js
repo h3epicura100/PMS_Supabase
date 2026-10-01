@@ -31,13 +31,13 @@ export const authService = {
       if (!error && data && data.length > 0) {
         return data.map(u => {
           const perms = (u.pms_user_permissions || []).map(p => p.permission_key);
-          const isFull = Boolean(u.has_full_access || u.role === 'admin' || perms.includes('ALL'));
+          const isFull = Boolean(u.role === 'admin' || u.has_full_access);
           return {
             ...u,
             name: u.display_name || u.id,
             password: u.password_hash,
             has_full_access: isFull,
-            allowedPages: isFull ? ['ALL'] : (perms.length ? perms : ['dashboard']),
+            allowedPages: isFull ? ['ALL'] : (perms.length ? perms.filter(p => p !== 'ALL') : ['dashboard']),
           };
         });
       }
@@ -50,14 +50,15 @@ export const authService = {
       try {
         const parsed = JSON.parse(saved);
         return parsed.map(u => {
-          const isFull = Boolean(u.has_full_access || u.role === 'admin' || u.allowedPages?.includes('ALL'));
+          const isFull = Boolean(u.role === 'admin' || u.has_full_access);
+          const cleanPages = (u.allowedPages || []).filter(p => p !== 'ALL');
           return {
             ...u,
             name: u.display_name || u.name || u.id,
             display_name: u.display_name || u.name || u.id,
             password: u.password_hash || u.password,
             has_full_access: isFull,
-            allowedPages: isFull ? ['ALL'] : (u.allowedPages || ['dashboard']),
+            allowedPages: isFull ? ['ALL'] : (cleanPages.length ? cleanPages : ['dashboard']),
           };
         });
       } catch (e) {}

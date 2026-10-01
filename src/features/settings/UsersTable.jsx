@@ -16,7 +16,7 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
       {/* Mobile Card Layout (Visible on screens < md) */}
       <div className="space-y-3.5 md:hidden">
         {users.map((u) => {
-          const isFull = u.role === 'admin' || u.has_full_access || u.allowedPages?.includes('ALL');
+          const isFull = u.role === 'admin' || Boolean(u.has_full_access);
           const phone = u.whatsapp_number || u.whatsappNumber;
 
           return (
@@ -63,12 +63,12 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
                     </span>
                   ) : (
                     <div className="flex flex-wrap gap-1">
-                      {(u.allowedPages || []).map((p) => (
+                      {(u.allowedPages || []).filter(p => p !== 'ALL' && p !== 'dashboard').map((p) => (
                         <span key={p} className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded font-medium">
                           {pageLabels[p] || p}
                         </span>
                       ))}
-                      {(!u.allowedPages || u.allowedPages.length === 0) && (
+                      {(!u.allowedPages || u.allowedPages.filter(p => p !== 'ALL' && p !== 'dashboard').length === 0) && (
                         <span className="text-slate-400 italic text-[11px]">No pages assigned</span>
                       )}
                     </div>
@@ -108,7 +108,7 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
             </thead>
             <tbody className="divide-y divide-pms-border">
               {users.map((u) => {
-                const isFull = u.role === 'admin' || u.has_full_access || u.allowedPages?.includes('ALL');
+                const isFull = u.role === 'admin' || Boolean(u.has_full_access);
                 const phone = u.whatsapp_number || u.whatsappNumber;
 
                 return (
@@ -139,11 +139,14 @@ export function UsersTable({ users = [], onEdit, onDelete }) {
                         </span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
-                          {(u.allowedPages || []).map((p) => (
+                          {(u.allowedPages || []).filter(p => p !== 'ALL' && p !== 'dashboard').map((p) => (
                             <span key={p} className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded font-medium">
                               {pageLabels[p] || p}
                             </span>
                           ))}
+                          {(!u.allowedPages || u.allowedPages.filter(p => p !== 'ALL' && p !== 'dashboard').length === 0) && (
+                            <span className="text-slate-400 italic text-[11px]">No pages assigned</span>
+                          )}
                         </div>
                       )}
                     </td>

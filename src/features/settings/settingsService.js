@@ -33,8 +33,8 @@ export const settingsService = {
   async saveUser(userData, isEditing) {
     const users = await this.getUsers();
 
-    const isFull = Boolean(userData.has_full_access || userData.role === 'admin' || userData.allowedPages?.includes('ALL'));
-    const pageList = isFull ? ['ALL'] : (userData.allowedPages || ['dashboard']);
+    const isFull = Boolean(userData.role === 'admin' || userData.has_full_access);
+    const pageList = isFull ? ['ALL'] : (userData.allowedPages || ['dashboard']).filter(p => p !== 'ALL');
 
     const formattedUser = {
       id: userData.id,

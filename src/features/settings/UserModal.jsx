@@ -24,10 +24,12 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
       setPassword(initialValues.password_hash || initialValues.password || '');
       setName(initialValues.display_name || initialValues.name || '');
       setWhatsappNumber(initialValues.whatsapp_number || initialValues.whatsappNumber || '');
-      setRole(initialValues.role || 'staff');
-      const isFull = Boolean(initialValues.has_full_access || initialValues.allowedPages?.includes('ALL') || initialValues.role === 'admin');
+      const userRole = initialValues.role || 'staff';
+      setRole(userRole);
+      const isFull = userRole === 'admin' || Boolean(initialValues.has_full_access);
       setFullAccess(isFull);
-      setAllowedPages(initialValues.allowedPages || ['dashboard']);
+      const initialPages = (initialValues.allowedPages || []).filter(k => k !== 'ALL');
+      setAllowedPages(initialPages.length > 0 ? initialPages : ['dashboard']);
       setError('');
     } else if (isOpen) {
       setId('');
@@ -41,13 +43,31 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
     }
   }, [initialValues, isOpen]);
 
+  const handleRoleChange = (newRole) => {
+    setRole(newRole);
+    if (newRole === 'admin') {
+      setFullAccess(true);
+    } else if (newRole === 'staff') {
+      setFullAccess(false);
+      setAllowedPages(prev => prev.filter(k => k !== 'ALL'));
+    }
+  };
+
+  const handleFullAccessChange = (checked) => {
+    setFullAccess(checked);
+    if (!checked) {
+      setAllowedPages(prev => prev.filter(k => k !== 'ALL'));
+    }
+  };
+
   const handlePermissionToggle = (key) => {
     setAllowedPages(prev => {
-      const exists = prev.includes(key);
+      const cleaned = prev.filter(k => k !== 'ALL');
+      const exists = cleaned.includes(key);
       if (exists) {
-        return prev.filter(k => k !== key);
+        return cleaned.filter(k => k !== key);
       } else {
-        return [...prev, key];
+        return [...cleaned, key];
       }
     });
   };
@@ -64,10 +84,11 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
     setIsSubmitting(true);
     try {
       let finalAllowed = ['dashboard'];
-      if (role === 'admin' || fullAccess) {
+      const isEffectivelyFull = role === 'admin' || fullAccess;
+      if (isEffectivelyFull) {
         finalAllowed = ['ALL'];
       } else {
-        const set = new Set([...allowedPages, 'dashboard']);
+        const set = new Set(allowedPages.filter(p => p !== 'ALL').concat('dashboard'));
         finalAllowed = Array.from(set);
       }
 
@@ -80,7 +101,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
         whatsapp_number: whatsappNumber.trim() || null,
         whatsappNumber: whatsappNumber.trim() || null,
         role,
-        has_full_access: fullAccess || role === 'admin',
+        has_full_access: isEffectivelyFull,
         allowedPages: finalAllowed,
       }, isEditing);
 
@@ -142,7 +163,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
             <Select
               label="Role"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => handleRoleChange(e.target.value)}
               options={[
                 { label: 'Staff', value: 'staff' },
                 { label: 'Admin', value: 'admin' },
@@ -154,7 +175,7 @@ export function UserModal({ isOpen, onClose, initialValues, onSave }) {
         <PermissionSelector
           role={role}
           fullAccess={fullAccess}
-          onFullAccessChange={setFullAccess}
+          onFullAccessChange={handleFullAccessChange}
           allowedPages={allowedPages}
           onPermissionToggle={handlePermissionToggle}
         />
