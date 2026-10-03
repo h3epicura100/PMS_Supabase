@@ -36,9 +36,14 @@ export function WhatsappPage() {
     }
   }, []);
 
-  // Initial load - do not auto select any chat
+  // Initial load - do not auto select any chat, and backfill any missing staff contact names
   useEffect(() => {
     loadConversations();
+    whatsappService.backfillStaffContactNames().then((updated) => {
+      if (updated) {
+        loadConversations();
+      }
+    });
   }, [loadConversations]);
 
   // Load thread messages whenever selected conversation changes

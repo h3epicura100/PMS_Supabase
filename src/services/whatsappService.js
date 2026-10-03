@@ -238,44 +238,57 @@ export const whatsappService = {
     }
 
     const recipientSet = new Set();
+    const userPhoneMap = new Map();
     const isTest = this.isTestMode();
 
-    if (isTest) {
-      console.info(`[WhatsApp Service] TEST MODE ACTIVE (VITE_WHATSAPP_TEST_MODE=true): Suppressing staff numbers. Sending only to tester number (${DEFAULT_NUMBER}).`);
-    } else {
-      // 1. Fetch all registered user phone numbers (Staff & Admin) from authService / database
-      try {
-        const users = await authService.loadUsers();
-        if (users && Array.isArray(users)) {
-          users.forEach(u => {
-            const rawNum = u.whatsapp_number || u.whatsappNumber;
-            if (rawNum) {
-              const formatted = normalizePhoneNumber(rawNum);
-              if (formatted) {
+    // 1. Fetch all registered user phone numbers (Staff & Admin) from authService / database
+    try {
+      const users = await authService.loadUsers();
+      if (users && Array.isArray(users)) {
+        users.forEach(u => {
+          const rawNum = u.whatsapp_number || u.whatsappNumber;
+          if (rawNum) {
+            const formatted = normalizePhoneNumber(rawNum);
+            if (formatted) {
+              userPhoneMap.set(formatted, {
+                displayName: u.display_name || u.name || u.id,
+                userId: u.id,
+              });
+              if (!isTest) {
                 recipientSet.add(formatted);
                 console.log(`[WhatsApp Service] Recipient added: ${formatted} (User: ${u.display_name || u.name || u.id}, Role: ${u.role || 'staff'})`);
               }
             }
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[WhatsApp Service] Could not fetch users via authService:', err);
+      try {
+        const { data: dbUsers } = await supabase
+          .from('pms_users')
+          .select('id, display_name, role, whatsapp_number')
+          .not('whatsapp_number', 'is', null);
+
+        if (dbUsers && Array.isArray(dbUsers)) {
+          dbUsers.forEach(u => {
+            const formatted = normalizePhoneNumber(u.whatsapp_number);
+            if (formatted) {
+              userPhoneMap.set(formatted, {
+                displayName: u.display_name || u.id,
+                userId: u.id,
+              });
+              if (!isTest) recipientSet.add(formatted);
+            }
           });
         }
-      } catch (err) {
-        console.warn('[WhatsApp Service] Could not fetch users via authService:', err);
-        try {
-          const { data: dbUsers } = await supabase
-            .from('pms_users')
-            .select('id, display_name, role, whatsapp_number')
-            .not('whatsapp_number', 'is', null);
-
-          if (dbUsers && Array.isArray(dbUsers)) {
-            dbUsers.forEach(u => {
-              const formatted = normalizePhoneNumber(u.whatsapp_number);
-              if (formatted) recipientSet.add(formatted);
-            });
-          }
-        } catch (dbErr) {
-          console.warn('[WhatsApp Service] Database query fallback failed:', dbErr);
-        }
+      } catch (dbErr) {
+        console.warn('[WhatsApp Service] Database query fallback failed:', dbErr);
       }
+    }
+
+    if (isTest) {
+      console.info(`[WhatsApp Service] TEST MODE ACTIVE (VITE_WHATSAPP_TEST_MODE=true): Suppressing staff numbers. Sending only to tester number (${DEFAULT_NUMBER}).`);
     }
 
     // 2. Always include the default configured tester number
@@ -344,6 +357,8 @@ export const whatsappService = {
           apiRes = await this._sendText(phone, message);
         }
 
+        const staffInfo = userPhoneMap.get(phone) || {};
+
         // Record successful dispatch into staff chat thread
         await this._logMessageToThread({
           phone,
@@ -357,6 +372,8 @@ export const whatsappService = {
           bookingId: booking?.id || null,
           maytapiResponse: apiRes,
           isStaff: true,
+          displayName: staffInfo.displayName || null,
+          userId: staffInfo.userId || null,
         });
 
         return { phone, success: true };
@@ -379,6 +396,8 @@ export const whatsappService = {
           error: errMsg,
         });
 
+        const staffInfo = userPhoneMap.get(phone) || {};
+
         // Record failed dispatch into staff chat thread
         this._logMessageToThread({
           phone,
@@ -392,6 +411,8 @@ export const whatsappService = {
           sentByName: 'Menu Finalize',
           bookingId: booking?.id || null,
           isStaff: true,
+          displayName: staffInfo.displayName || null,
+          userId: staffInfo.userId || null,
         });
       }
     });
@@ -457,8 +478,19 @@ export const whatsappService = {
 
       if (existingContact) {
         contact = existingContact;
-        if (displayName && (!contact.display_name || contact.display_name === cleanPhone)) {
-          await supabase.from('pms_wa_contacts').update({ display_name: displayName }).eq('id', contact.id);
+        const isPhoneNumberOnly = !contact.display_name ||
+          contact.display_name === cleanPhone ||
+          /^[\d\s+\-()]+$/.test((contact.display_name || '').trim());
+
+        if (displayName && isPhoneNumberOnly) {
+          const updates = {
+            display_name: displayName,
+            updated_at: new Date().toISOString(),
+          };
+          if (userId && !contact.user_id) updates.user_id = userId;
+          await supabase.from('pms_wa_contacts').update(updates).eq('id', contact.id);
+          contact.display_name = displayName;
+          if (updates.user_id) contact.user_id = updates.user_id;
         }
       } else {
         const { data: newContact, error: cErr } = await supabase
@@ -549,6 +581,90 @@ export const whatsappService = {
     } catch (err) {
       console.warn('[WhatsApp Service] Error logging message to thread:', err);
       return null;
+    }
+  },
+
+  /**
+   * Backfills staff display names in pms_wa_contacts for contacts whose display_name is missing or only digits.
+   * Returns true if any contacts were updated.
+   */
+  async backfillStaffContactNames() {
+    try {
+      let users = [];
+      try {
+        users = await authService.loadUsers();
+      } catch (e) {
+        console.warn('[WhatsApp Service] loadUsers failed during backfill:', e);
+      }
+
+      if (!users || !Array.isArray(users) || users.length === 0) {
+        const { data: dbUsers } = await supabase
+          .from('pms_users')
+          .select('id, display_name, whatsapp_number')
+          .not('whatsapp_number', 'is', null);
+        users = dbUsers || [];
+      }
+
+      if (!users || users.length === 0) return false;
+
+      const userPhoneMap = new Map();
+      users.forEach(u => {
+        const rawNum = u.whatsapp_number || u.whatsappNumber;
+        if (rawNum) {
+          const normalized = normalizePhoneNumber(rawNum);
+          if (normalized) {
+            userPhoneMap.set(normalized, {
+              displayName: u.display_name || u.name || u.id,
+              userId: u.id,
+            });
+          }
+        }
+      });
+
+      const { data: contacts, error } = await supabase
+        .from('pms_wa_contacts')
+        .select('id, phone, display_name, user_id');
+
+      if (error || !contacts || contacts.length === 0) return false;
+
+      let updatedCount = 0;
+      for (const contact of contacts) {
+        const isPhoneNumberOnly = !contact.display_name ||
+          contact.display_name === contact.phone ||
+          /^[\d\s+\-()]+$/.test((contact.display_name || '').trim());
+
+        if (!isPhoneNumberOnly) continue;
+
+        const match = userPhoneMap.get(contact.phone);
+        if (!match) continue;
+
+        const updates = {
+          display_name: match.displayName,
+          is_staff: true,
+          updated_at: new Date().toISOString(),
+        };
+        if (!contact.user_id && match.userId) {
+          updates.user_id = match.userId;
+        }
+
+        const { error: updateErr } = await supabase
+          .from('pms_wa_contacts')
+          .update(updates)
+          .eq('id', contact.id);
+
+        if (!updateErr) {
+          updatedCount++;
+        }
+      }
+
+      if (updatedCount > 0) {
+        console.info(`[WhatsApp Service] Successfully backfilled ${updatedCount} staff contact names.`);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('[WhatsApp Service] Backfill failed:', err);
+      return false;
     }
   },
 
